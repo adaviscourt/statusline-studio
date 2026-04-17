@@ -138,17 +138,17 @@ export const SEGMENT_DEFS = [
     editorFields: [{ type:'toggle', key:'showVersion', label:'Show version (e.g. 4.6)' }],
     preview: s => s.showVersion ? 'Sonnet 4.6' : 'Sonnet',
     bash: s => s.showVersion
-      ? `MODEL=$(echo "$input" | jq -r '.model.display_name')\nMODEL_VER=$(echo "$input" | jq -r '.model.id // empty' | sed 's/.*-\\([0-9][0-9]*\\.[0-9][0-9]*\\)$/\\1/')`
-      : `MODEL=$(echo "$input" | jq -r '.model.display_name')`,
+      ? `MODEL=$(echo "$input" | jq -r '.model.display_name' | sed 's/^[Cc]laude //')`
+      : `MODEL=$(echo "$input" | jq -r '.model.display_name' | sed 's/^[Cc]laude //; s/ [0-9].*//')`,
     pyVar: s => s.showVersion
-      ? `import re\nmodel = data["model"]["display_name"]\nmodel_ver_m = re.search(r'\\d+\\.\\d+$', data.get("model", {}).get("id", "") or "")\nmodel_ver = model_ver_m.group() if model_ver_m else ""`
-      : `model = data["model"]["display_name"]`,
+      ? `import re\nmodel = re.sub(r'^[Cc]laude\\s+', '', data["model"]["display_name"])`
+      : `import re\nmodel = re.sub(r'\\s+\\d.*', '', re.sub(r'^[Cc]laude\\s+', '', data["model"]["display_name"]))`,
     nodeVar: s => s.showVersion
-      ? `const model = data.model.display_name;\nconst modelVer = (data.model?.id || '').match(/\\d+\\.\\d+$/)?.[0] || '';`
-      : `const model = data.model.display_name;`,
-    bashOut: s => renderBashOut(s, s.showVersion ? '"$MODEL $MODEL_VER"' : '$MODEL'),
-    pyOut: s => renderPyOut(s, s.showVersion ? 'f"{model} {model_ver}"' : 'model'),
-    nodeOut: s => renderNodeOut(s, s.showVersion ? '`${model} ${modelVer}`' : 'model'),
+      ? `const model = data.model.display_name.replace(/^[Cc]laude\\s+/, '');`
+      : `const model = data.model.display_name.replace(/^[Cc]laude\\s+/, '').replace(/\\s+\\d.*/, '');`,
+    bashOut: s => renderBashOut(s, '$MODEL'),
+    pyOut: s => renderPyOut(s, 'model'),
+    nodeOut: s => renderNodeOut(s, 'model'),
   },
   { id: 'session',    label: 'Session Name',   icon: '⬡', group: 'Model & Session',  color: 'cyan',
     preview: () => 'my-session',
@@ -282,13 +282,13 @@ export const SEGMENT_DEFS = [
     editorFields: [{ type:'toggle', key:'showReset', label:'Show reset time' }],
     preview: s => s.showReset ? '5h: 24% · 14:30' : '5h: 24%',
     bash: s => s.showReset
-      ? `RL5H=$(echo "$input" | jq -r 'if .rate_limits.five_hour.used_percentage != null then (.rate_limits.five_hour.used_percentage | floor | tostring) else "" end')\nRL5H_RESET=$(echo "$input" | jq -r '.rate_limits.five_hour.reset_at // empty' | grep -oE '[0-9]{2}:[0-9]{2}' | head -1)`
+      ? `RL5H=$(echo "$input" | jq -r 'if .rate_limits.five_hour.used_percentage != null then (.rate_limits.five_hour.used_percentage | floor | tostring) else "" end')\nRL5H_RESET=$(echo "$input" | jq -r 'if .rate_limits.five_hour.resets_at != null then (.rate_limits.five_hour.resets_at | todate | split("T")[1][:5]) else "" end')`
       : `RL5H=$(echo "$input" | jq -r 'if .rate_limits.five_hour.used_percentage != null then (.rate_limits.five_hour.used_percentage | floor | tostring) else "" end')`,
     pyVar: s => s.showReset
-      ? `rl5h = (data.get("rate_limits") or {}).get("five_hour", {}).get("used_percentage")\n    rl5h_reset_raw = (data.get("rate_limits") or {}).get("five_hour", {}).get("reset_at", "") or ""\n    rl5h_reset = rl5h_reset_raw[11:16] if rl5h_reset_raw else ""`
+      ? `rl5h = (data.get("rate_limits") or {}).get("five_hour", {}).get("used_percentage")\n    _rl5h_ts = (data.get("rate_limits") or {}).get("five_hour", {}).get("resets_at")\n    rl5h_reset = __import__('datetime').datetime.utcfromtimestamp(_rl5h_ts).strftime('%H:%M') if _rl5h_ts else ""`
       : `rl5h = (data.get("rate_limits") or {}).get("five_hour", {}).get("used_percentage")`,
     nodeVar: s => s.showReset
-      ? `const rl5h = data.rate_limits?.five_hour?.used_percentage;\n    const rl5hResetRaw = data.rate_limits?.five_hour?.reset_at || '';\n    const rl5hReset = rl5hResetRaw ? new Date(rl5hResetRaw).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';`
+      ? `const rl5h = data.rate_limits?.five_hour?.used_percentage;\n    const _rl5hTs = data.rate_limits?.five_hour?.resets_at;\n    const rl5hReset = _rl5hTs ? new Date(_rl5hTs * 1000).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';`
       : `const rl5h = data.rate_limits?.five_hour?.used_percentage;`,
     bashOut: s => {
       if (s.showReset) {
@@ -310,17 +310,23 @@ export const SEGMENT_DEFS = [
     editorFields: [{ type:'toggle', key:'showReset', label:'Show reset time' }],
     preview: s => s.showReset ? '7d: 41% · 14:30' : '7d: 41%',
     bash: s => s.showReset
-      ? `RL7D=$(echo "$input" | jq -r 'if .rate_limits.seven_day.used_percentage != null then (.rate_limits.seven_day.used_percentage | floor | tostring) else "" end')\nRL7D_RESET=$(echo "$input" | jq -r '.rate_limits.seven_day.reset_at // empty' | grep -oE '[0-9]{2}:[0-9]{2}' | head -1)`
+      ? `RL7D=$(echo "$input" | jq -r 'if .rate_limits.seven_day.used_percentage != null then (.rate_limits.seven_day.used_percentage | floor | tostring) else "" end')\nRL7D_RESET=$(echo "$input" | jq -r 'if .rate_limits.seven_day.resets_at != null then (.rate_limits.seven_day.resets_at | todate | split("T")[1][:5]) else "" end')`
       : `RL7D=$(echo "$input" | jq -r 'if .rate_limits.seven_day.used_percentage != null then (.rate_limits.seven_day.used_percentage | floor | tostring) else "" end')`,
     pyVar: s => s.showReset
-      ? `rl7d = (data.get("rate_limits") or {}).get("seven_day", {}).get("used_percentage")\n    rl7d_reset_raw = (data.get("rate_limits") or {}).get("seven_day", {}).get("reset_at", "") or ""\n    rl7d_reset = rl7d_reset_raw[11:16] if rl7d_reset_raw else ""`
+      ? `rl7d = (data.get("rate_limits") or {}).get("seven_day", {}).get("used_percentage")\n    _rl7d_ts = (data.get("rate_limits") or {}).get("seven_day", {}).get("resets_at")\n    rl7d_reset = __import__('datetime').datetime.utcfromtimestamp(_rl7d_ts).strftime('%H:%M') if _rl7d_ts else ""`
       : `rl7d = (data.get("rate_limits") or {}).get("seven_day", {}).get("used_percentage")`,
     nodeVar: s => s.showReset
-      ? `const rl7d = data.rate_limits?.seven_day?.used_percentage;\n    const rl7dResetRaw = data.rate_limits?.seven_day?.reset_at || '';\n    const rl7dReset = rl7dResetRaw ? new Date(rl7dResetRaw).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';`
+      ? `const rl7d = data.rate_limits?.seven_day?.used_percentage;\n    const _rl7dTs = data.rate_limits?.seven_day?.resets_at;\n    const rl7dReset = _rl7dTs ? new Date(_rl7dTs * 1000).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';`
       : `const rl7d = data.rate_limits?.seven_day?.used_percentage;`,
-    bashOut: s => s.showReset
-      ? `[ -n "$RL7D" ] && { out7d="7d: \${RL7D}%"; [ -n "$RL7D_RESET" ] && out7d="\${out7d} · \${RL7D_RESET}"; parts+=("$out7d"); }`
-      : `[ -n "$RL7D" ] && ${renderBashOut(s, '"7d: ${RL7D}%"')}`,
+    bashOut: s => {
+      const open = bashColorOpen(s.color), close = bashColorClose(s.color);
+      const icon = (s.icon && s.icon !== 'none') ? s.icon + ' ' : '';
+      const pre = s.prefix || '', suf = s.suffix || '';
+      if (s.showReset) {
+        return `[ -n "$RL7D" ] && { rl7d_str="7d: \${RL7D}%"; [ -n "$RL7D_RESET" ] && rl7d_str="\${rl7d_str} · \${RL7D_RESET}"; parts+=("${pre}${icon}${open}\${rl7d_str}${close}${suf}"); }`;
+      }
+      return `[ -n "$RL7D" ] && ${renderBashOut(s, '"7d: ${RL7D}%"')}`;
+    },
     pyOut: s => s.showReset
       ? `if rl7d is not None:\n    rl7d_str = f"7d: {int(rl7d)}%" + (f" · {rl7d_reset}" if rl7d_reset else "")\n    ${renderPyOut(s, 'rl7d_str')}`
       : `if rl7d is not None:\n    ${renderPyOut(s, 'f"7d: {int(rl7d)}%"')}`,
