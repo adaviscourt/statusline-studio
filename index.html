@@ -719,6 +719,121 @@ pre {
 }
 
 .sortable-drag { opacity: 0.9; cursor: grabbing !important; }
+
+/* ── Export Modal ── */
+.export-modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  min-width: 380px;
+  max-width: 460px;
+  width: 100%;
+  max-height: 86vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.export-lang-tabs {
+  display: flex;
+  gap: 4px;
+}
+.export-lang-btn {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.12s;
+}
+.export-lang-btn:hover { border-color: var(--border2); color: var(--text); }
+.export-lang-btn.active { border-color: var(--accent); background: rgba(91,138,245,0.12); color: var(--accent); }
+.export-what {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+.export-what-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.export-what-row .dot { color: var(--text3); flex-shrink: 0; }
+.export-what-row .path { color: var(--text); font-family: var(--font-mono); font-size: 11px; }
+.export-settings-preview {
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text2);
+  white-space: pre;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+.export-track {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.export-track-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.export-track-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.export-track-desc {
+  font-size: 11px;
+  color: var(--text3);
+}
+.export-track-btn {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+.export-manual-actions {
+  display: flex;
+  gap: 8px;
+}
+.export-manual-actions .btn { flex: 1; justify-content: center; text-align: center; }
+.export-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text3);
+  font-size: 11px;
+}
+.export-divider::before,
+.export-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.export-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
 </style>
 </head>
 <body>
@@ -731,8 +846,7 @@ pre {
   </div>
   <div class="header-spacer"></div>
   <button class="btn" id="openSettingsBtn">⚙ Settings</button>
-  <button class="btn" id="exportSettingsBtn">⎘ Copy settings.json</button>
-  <button class="btn btn-primary" id="saveScriptBtn">↓ Save Script</button>
+  <button class="btn btn-primary" id="openExportBtn">↓ Export</button>
 </header>
 
 <!-- MAIN -->
@@ -792,6 +906,62 @@ pre {
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-overlay" id="exportModal">
+  <div class="export-modal">
+    <div class="settings-modal-title">↓ Export Statusline</div>
+
+    <!-- Language + path (shared by both tracks) -->
+    <div class="settings-section">
+      <div class="settings-section-label">Language</div>
+      <div class="export-lang-tabs">
+        <button class="export-lang-btn active" data-lang="bash">bash</button>
+        <button class="export-lang-btn" data-lang="python">python</button>
+        <button class="export-lang-btn" data-lang="node">node.js</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-label">Install Path</div>
+      <div class="settings-row">
+        <input type="text" class="editor-input" id="export-path" style="flex:1" placeholder="~/.claude/statusline.sh">
+      </div>
+    </div>
+
+    <!-- Track A: one-liner -->
+    <div class="export-track">
+      <div class="export-track-header">
+        <span class="export-track-label">One-liner install</span>
+        <span class="export-track-desc">Saves the script and updates settings.json automatically</span>
+      </div>
+      <div class="export-what">
+        <div class="export-what-row"><span class="dot">•</span><span>Writes script to <span class="path" id="export-path-display">~/.claude/statusline.sh</span></span></div>
+        <div class="export-what-row"><span class="dot">•</span><span>Merges into <span class="path">~/.claude/settings.json</span>:</span></div>
+        <pre class="export-settings-preview" id="export-settings-preview"></pre>
+      </div>
+      <button class="btn btn-primary export-track-btn" id="export-install-btn">⎘ Copy Install Command</button>
+    </div>
+
+    <!-- Divider -->
+    <div class="export-divider"><span>or install manually</span></div>
+
+    <!-- Track B: manual -->
+    <div class="export-track">
+      <div class="export-track-header">
+        <span class="export-track-label">Manual install</span>
+        <span class="export-track-desc">Download the script — you add settings.json yourself</span>
+      </div>
+      <div class="export-manual-actions">
+        <button class="btn export-track-btn" id="export-save-btn">↓ Save Script</button>
+        <button class="btn export-track-btn" id="export-copy-settings-btn">⎘ Copy settings.json snippet</button>
+      </div>
+    </div>
+
+    <div class="export-modal-footer">
+      <button class="btn btn-ghost" id="closeExportBtn">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <!-- SETTINGS MODAL -->
 <div class="modal-overlay" id="settingsModal">
@@ -2460,24 +2630,120 @@ function showToast(msg) {
 }
 
 // ─────────────────────────────────────────────────
-// HEADER ACTIONS
+// EXPORT MODAL
 // ─────────────────────────────────────────────────
-document.getElementById('exportSettingsBtn').addEventListener('click', () => {
-  navigator.clipboard.writeText(rawCode.settings || '').then(() => showToast('settings.json snippet copied'));
-});
+(function initExportModal() {
+  const DEFAULT_PATHS = { bash: '~/.claude/statusline.sh', python: '~/.claude/statusline.py', node: '~/.claude/statusline.js' };
+  const EXTS = { bash: 'sh', python: 'py', node: 'js' };
+  let exportLang = 'bash';
 
-document.getElementById('saveScriptBtn').addEventListener('click', () => {
-  // Get active tab's code
-  const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'bash';
-  const code = rawCode[activeTab] || '';
-  const ext = { bash: 'sh', python: 'py', node: 'js', settings: 'json' }[activeTab] || 'sh';
-  const blob = new Blob([code], { type: 'text/plain' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `statusline.${ext}`;
-  a.click();
-  showToast(`Downloaded statusline.${ext}`);
-});
+  function getExportPath() {
+    return document.getElementById('export-path').value.trim() || DEFAULT_PATHS[exportLang];
+  }
+
+  function refreshDialog() {
+    // Sync path field if it still has a default value
+    const pathInp = document.getElementById('export-path');
+    if (!pathInp.value || Object.values(DEFAULT_PATHS).includes(pathInp.value)) {
+      pathInp.value = globalSettings.scriptPath && Object.values(DEFAULT_PATHS).includes(globalSettings.scriptPath)
+        ? DEFAULT_PATHS[exportLang]
+        : (globalSettings.scriptPath || DEFAULT_PATHS[exportLang]);
+    }
+    document.getElementById('export-path-display').textContent = getExportPath();
+    document.getElementById('export-settings-preview').textContent = rawCode.settings || '';
+  }
+
+  function openExportModal() {
+    // Default language to the active bottom-panel tab (if not settings)
+    const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
+    if (activeTab && activeTab !== 'settings') {
+      exportLang = activeTab;
+      document.querySelectorAll('.export-lang-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.lang === exportLang);
+      });
+    }
+    const pathInp = document.getElementById('export-path');
+    pathInp.value = DEFAULT_PATHS[exportLang];
+    refreshDialog();
+    document.getElementById('exportModal').classList.add('visible');
+  }
+
+  document.getElementById('openExportBtn').addEventListener('click', openExportModal);
+  document.getElementById('closeExportBtn').addEventListener('click', () => {
+    document.getElementById('exportModal').classList.remove('visible');
+  });
+  document.getElementById('exportModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('visible');
+  });
+
+  document.querySelectorAll('.export-lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      exportLang = btn.dataset.lang;
+      document.querySelectorAll('.export-lang-btn').forEach(b => b.classList.toggle('active', b === btn));
+      // Auto-update path if it still has a default value
+      const pathInp = document.getElementById('export-path');
+      if (!pathInp.value || Object.values(DEFAULT_PATHS).includes(pathInp.value)) {
+        pathInp.value = DEFAULT_PATHS[exportLang];
+      }
+      refreshDialog();
+    });
+  });
+
+  document.getElementById('export-path').addEventListener('input', () => {
+    document.getElementById('export-path-display').textContent = getExportPath();
+  });
+
+  // Save Script (manual track)
+  document.getElementById('export-save-btn').addEventListener('click', () => {
+    const code = rawCode[exportLang] || '';
+    const ext = EXTS[exportLang] || 'sh';
+    const blob = new Blob([code], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `statusline.${ext}`;
+    a.click();
+    showToast(`Downloaded statusline.${ext}`);
+  });
+
+  // Copy settings.json snippet (manual track)
+  document.getElementById('export-copy-settings-btn').addEventListener('click', () => {
+    navigator.clipboard.writeText(rawCode.settings || '').then(() => showToast('settings.json snippet copied'));
+  });
+
+  // Copy Install Command
+  document.getElementById('export-install-btn').addEventListener('click', () => {
+    const scriptCode = rawCode[exportLang] || '';
+    const settingsCode = rawCode.settings || '{}';
+    const scriptPath = getExportPath().replace(/^~/, '$HOME');
+    const settingsObj = JSON.parse(settingsCode);
+
+    const scriptB64   = btoa(unescape(encodeURIComponent(scriptCode)));
+    const settingsB64 = btoa(unescape(encodeURIComponent(JSON.stringify(settingsObj))));
+
+    // node is always available with Claude Code; use it to safely merge settings.json.
+    // <<'NODEEOF' suppresses bash expansion — settingsB64 is already baked in by JS.
+    const installer =
+`#!/usr/bin/env bash
+set -e
+SCRIPT_PATH="${scriptPath}"
+mkdir -p "$(dirname "$SCRIPT_PATH")"
+echo '${scriptB64}' | base64 -d > "$SCRIPT_PATH"
+chmod +x "$SCRIPT_PATH"
+node - <<'NODEEOF'
+const fs=require('fs'),os=require('os'),p=require('path').join(os.homedir(),'.claude/settings.json');
+const e=fs.existsSync(p)?JSON.parse(fs.readFileSync(p,'utf8')):{};
+Object.assign(e,JSON.parse(Buffer.from('${settingsB64}','base64').toString()));
+fs.writeFileSync(p,JSON.stringify(e,null,2));
+console.log('settings.json updated');
+NODEEOF
+echo "Installed to $SCRIPT_PATH"
+`;
+
+    const installerB64 = btoa(unescape(encodeURIComponent(installer)));
+    const cmd = `bash <(echo '${installerB64}' | base64 -d)`;
+    navigator.clipboard.writeText(cmd).then(() => showToast('Install command copied'));
+  });
+})();
 
 // ─────────────────────────────────────────────────
 // KEYBOARD
