@@ -2379,54 +2379,57 @@ function esc(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// W: returns a replacer that skips existing HTML tags (group 1) and
+// wraps the actual code match (group 2) in a span. Every regex in the
+// highlighters below must start with (<[^>]*>) as group 1 to use this.
+function W(cls) {
+  return (m, tag, match) => tag || `<span class="${cls}">${match}</span>`;
+}
+
 function syntaxBash(code) {
   let s = esc(code);
-  // comments
-  s = s.replace(/(#[^\n]*)/g, '<span class="cmt">$1</span>');
-  // keywords
-  s = s.replace(/\b(if|then|fi|else|elif|for|do|done|while|case|esac|in|function)\b/g, '<span class="kw">$1</span>');
-  // shebang
-  s = s.replace(/(#!\/bin\/bash)/, '<span class="kw">$1</span>');
-  // builtins
-  s = s.replace(/\b(echo|printf|export|source|local|return|exit|shift|read|cat|jq|git|bc|wc|tr|cut)\b/g, '<span class="fn">$1</span>');
-  // strings (negative lookbehind skips class="..." injected by earlier passes)
-  s = s.replace(/(?<!class=)("(?:[^"\\]|\\.)*")/g, '<span class="str">$1</span>');
-  // vars
-  s = s.replace(/(\$\{?[A-Z_][A-Z0-9_]*\}?)/g, '<span class="var">$1</span>');
-  // numbers
-  s = s.replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
+  s = s.replace(/(<[^>]*>)|(#[^\n]*)/g, W('cmt'));
+  s = s.replace(/(<[^>]*>)|\b(if|then|fi|else|elif|for|do|done|while|case|esac|in|function)\b/g, W('kw'));
+  s = s.replace(/(<[^>]*>)|\b(echo|printf|export|source|local|return|exit|shift|read|cat|jq|git|bc|wc|tr|cut)\b/g, W('fn'));
+  s = s.replace(/(<[^>]*>)|("(?:[^"\\]|\\.)*")/g, W('str'));
+  s = s.replace(/(<[^>]*>)|(\$\{?[A-Z_][A-Z0-9_]*\}?)/g, W('var'));
+  s = s.replace(/(<[^>]*>)|\b(\d+)\b/g, W('num'));
   return s;
 }
 
 function syntaxPython(code) {
   let s = esc(code);
-  s = s.replace(/(#[^\n]*)/g, '<span class="cmt">$1</span>');
-  s = s.replace(/\b(import|from|def|class|if|else|elif|for|while|try|except|with|return|in|not|and|or|is|None|True|False)\b/g, '<span class="kw">$1</span>');
-  s = s.replace(/(?<!class=)(f?"(?:[^"\\]|\\.)*")/g, '<span class="str">$1</span>');
-  s = s.replace(/(?<!class=)(f?'(?:[^'\\]|\\.)*')/g, '<span class="str">$1</span>');
-  s = s.replace(/\b(print|len|int|str|float|list|dict|range|open|json|sys|os|subprocess)\b/g, '<span class="fn">$1</span>');
-  s = s.replace(/\b(\d+\.?\d*)\b/g, '<span class="num">$1</span>');
+  s = s.replace(/(<[^>]*>)|(#[^\n]*)/g, W('cmt'));
+  s = s.replace(/(<[^>]*>)|\b(import|from|def|class|if|else|elif|for|while|try|except|with|return|in|not|and|or|is|None|True|False)\b/g, W('kw'));
+  s = s.replace(/(<[^>]*>)|(f?"(?:[^"\\]|\\.)*")/g, W('str'));
+  s = s.replace(/(<[^>]*>)|(f?'(?:[^'\\]|\\.)*')/g, W('str'));
+  s = s.replace(/(<[^>]*>)|\b(print|len|int|str|float|list|dict|range|open|json|sys|os|subprocess)\b/g, W('fn'));
+  s = s.replace(/(<[^>]*>)|\b(\d+\.?\d*)\b/g, W('num'));
   return s;
 }
 
 function syntaxJS(code) {
   let s = esc(code);
-  s = s.replace(/(\/\/[^\n]*)/g, '<span class="cmt">$1</span>');
-  s = s.replace(/\b(const|let|var|function|if|else|for|while|return|try|catch|require|of|in|new|null|undefined|true|false)\b/g, '<span class="kw">$1</span>');
-  s = s.replace(/((?:&lt;)?`(?:[^`])*`)/g, '<span class="str">$1</span>');
-  s = s.replace(/(?<!class=)("(?:[^"\\]|\\.)*")/g, '<span class="str">$1</span>');
-  s = s.replace(/(?<!class=)('(?:[^'\\]|\\.)*')/g, '<span class="str">$1</span>');
-  s = s.replace(/\b(console|process|Math|JSON|String|require)\b/g, '<span class="fn">$1</span>');
-  s = s.replace(/\b(\d+\.?\d*)\b/g, '<span class="num">$1</span>');
+  s = s.replace(/(<[^>]*>)|(\/\/[^\n]*)/g, W('cmt'));
+  s = s.replace(/(<[^>]*>)|\b(const|let|var|function|if|else|for|while|return|try|catch|require|of|in|new|null|undefined|true|false)\b/g, W('kw'));
+  s = s.replace(/(<[^>]*>)|((?:&lt;)?`[^`]*`)/g, W('str'));
+  s = s.replace(/(<[^>]*>)|("(?:[^"\\]|\\.)*")/g, W('str'));
+  s = s.replace(/(<[^>]*>)|('(?:[^'\\]|\\.)*')/g, W('str'));
+  s = s.replace(/(<[^>]*>)|\b(console|process|Math|JSON|String|require)\b/g, W('fn'));
+  s = s.replace(/(<[^>]*>)|\b(\d+\.?\d*)\b/g, W('num'));
   return s;
 }
 
 function syntaxJSON(code) {
   let s = esc(code);
-  s = s.replace(/("(?:[^"\\]|\\.)*"\s*:)/g, '<span class="kw">$1</span>');
-  s = s.replace(/(:\s*)("(?:[^"\\]|\\.)*")/g, '$1<span class="str">$2</span>');
-  s = s.replace(/\b(true|false|null)\b/g, '<span class="fn">$1</span>');
-  s = s.replace(/\b(\d+\.?\d*)\b/g, '<span class="num">$1</span>');
+  // color keys (purple) and values (green) in a single pass to avoid overlap
+  s = s.replace(/(<[^>]*>)|("(?:[^"\\]|\\.)*")(\s*:)|("(?:[^"\\]|\\.)*")/g, (m, tag, key, colon, val) => {
+    if (tag) return tag;
+    if (key) return `<span class="kw">${key}</span>${colon}`;
+    return `<span class="str">${val}</span>`;
+  });
+  s = s.replace(/(<[^>]*>)|\b(true|false|null)\b/g, W('fn'));
+  s = s.replace(/(<[^>]*>)|\b(\d+\.?\d*)\b/g, W('num'));
   return s;
 }
 
