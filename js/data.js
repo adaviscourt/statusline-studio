@@ -282,10 +282,10 @@ export const SEGMENT_DEFS = [
     editorFields: [{ type:'toggle', key:'showReset', label:'Show reset time' }],
     preview: s => s.showReset ? '5h: 24% · 14:30' : '5h: 24%',
     bash: s => s.showReset
-      ? `RL5H=$(echo "$input" | jq -r 'if .rate_limits.five_hour.used_percentage != null then (.rate_limits.five_hour.used_percentage | floor | tostring) else "" end')\nRL5H_RESET=$(echo "$input" | jq -r 'if .rate_limits.five_hour.resets_at != null then (.rate_limits.five_hour.resets_at | todate | split("T")[1][:5]) else "" end')`
+      ? `RL5H=$(echo "$input" | jq -r 'if .rate_limits.five_hour.used_percentage != null then (.rate_limits.five_hour.used_percentage | floor | tostring) else "" end')\n_RL5H_TS=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty')\nRL5H_RESET=""\n[ -n "$_RL5H_TS" ] && RL5H_RESET=$(date -r "$_RL5H_TS" +%H:%M 2>/dev/null || date -d "@$_RL5H_TS" +%H:%M 2>/dev/null || echo "")`
       : `RL5H=$(echo "$input" | jq -r 'if .rate_limits.five_hour.used_percentage != null then (.rate_limits.five_hour.used_percentage | floor | tostring) else "" end')`,
     pyVar: s => s.showReset
-      ? `rl5h = (data.get("rate_limits") or {}).get("five_hour", {}).get("used_percentage")\n    _rl5h_ts = (data.get("rate_limits") or {}).get("five_hour", {}).get("resets_at")\n    rl5h_reset = __import__('datetime').datetime.utcfromtimestamp(_rl5h_ts).strftime('%H:%M') if _rl5h_ts else ""`
+      ? `rl5h = (data.get("rate_limits") or {}).get("five_hour", {}).get("used_percentage")\n    _rl5h_ts = (data.get("rate_limits") or {}).get("five_hour", {}).get("resets_at")\n    rl5h_reset = __import__('datetime').datetime.fromtimestamp(_rl5h_ts).strftime('%H:%M') if _rl5h_ts else ""`
       : `rl5h = (data.get("rate_limits") or {}).get("five_hour", {}).get("used_percentage")`,
     nodeVar: s => s.showReset
       ? `const rl5h = data.rate_limits?.five_hour?.used_percentage;\n    const _rl5hTs = data.rate_limits?.five_hour?.resets_at;\n    const rl5hReset = _rl5hTs ? new Date(_rl5hTs * 1000).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';`
@@ -310,10 +310,10 @@ export const SEGMENT_DEFS = [
     editorFields: [{ type:'toggle', key:'showReset', label:'Show reset time' }],
     preview: s => s.showReset ? '7d: 41% · 14:30' : '7d: 41%',
     bash: s => s.showReset
-      ? `RL7D=$(echo "$input" | jq -r 'if .rate_limits.seven_day.used_percentage != null then (.rate_limits.seven_day.used_percentage | floor | tostring) else "" end')\nRL7D_RESET=$(echo "$input" | jq -r 'if .rate_limits.seven_day.resets_at != null then (.rate_limits.seven_day.resets_at | todate | split("T")[1][:5]) else "" end')`
+      ? `RL7D=$(echo "$input" | jq -r 'if .rate_limits.seven_day.used_percentage != null then (.rate_limits.seven_day.used_percentage | floor | tostring) else "" end')\n_RL7D_TS=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')\nRL7D_RESET=""\n[ -n "$_RL7D_TS" ] && RL7D_RESET=$(date -r "$_RL7D_TS" +%H:%M 2>/dev/null || date -d "@$_RL7D_TS" +%H:%M 2>/dev/null || echo "")`
       : `RL7D=$(echo "$input" | jq -r 'if .rate_limits.seven_day.used_percentage != null then (.rate_limits.seven_day.used_percentage | floor | tostring) else "" end')`,
     pyVar: s => s.showReset
-      ? `rl7d = (data.get("rate_limits") or {}).get("seven_day", {}).get("used_percentage")\n    _rl7d_ts = (data.get("rate_limits") or {}).get("seven_day", {}).get("resets_at")\n    rl7d_reset = __import__('datetime').datetime.utcfromtimestamp(_rl7d_ts).strftime('%H:%M') if _rl7d_ts else ""`
+      ? `rl7d = (data.get("rate_limits") or {}).get("seven_day", {}).get("used_percentage")\n    _rl7d_ts = (data.get("rate_limits") or {}).get("seven_day", {}).get("resets_at")\n    rl7d_reset = __import__('datetime').datetime.fromtimestamp(_rl7d_ts).strftime('%H:%M') if _rl7d_ts else ""`
       : `rl7d = (data.get("rate_limits") or {}).get("seven_day", {}).get("used_percentage")`,
     nodeVar: s => s.showReset
       ? `const rl7d = data.rate_limits?.seven_day?.used_percentage;\n    const _rl7dTs = data.rate_limits?.seven_day?.resets_at;\n    const rl7dReset = _rl7dTs ? new Date(_rl7dTs * 1000).toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';`
