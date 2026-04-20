@@ -132,6 +132,50 @@ export function renderNodeOut(s, varExpr) {
   return `parts.push(\`${pre}${icon}${bg}${bold}${c.o}\${${varExpr}}${reset}${suf}\`);`;
 }
 
+// ─── Gradient output renderers (runtime color var) ─
+// Used by context widgets when `gradient` is enabled. The color var is chosen
+// at statusline-runtime based on percentage, so the static seg.color is ignored.
+export function gradientBashOut(s, varExpr, colorVar) {
+  if (s.hide) return '';
+  const bg    = BASH_BG_VAR[s.bgColor || 'default'] || '';
+  const boldO = s.bold ? '${BOLD}' : '';
+  const icon  = (s.icon && s.icon !== 'none') ? s.icon + ' ' : '';
+  const pre   = s.prefix || '';
+  const suf   = s.suffix || '';
+  const rawVar = varExpr.replace(/^"|"$/g, '');
+  const mw = (s.maxWidth > 0) ? s.maxWidth : 0;
+  if (mw > 0) {
+    return `{ __v="${pre}${icon}${rawVar}${suf}"; parts+=("${bg}${boldO}${colorVar}\${__v:0:${mw}}\${RESET}"); }`;
+  }
+  return `parts+=("${pre}${icon}${bg}${boldO}${colorVar}${rawVar}\${RESET}${suf}")`;
+}
+
+export function gradientPyOut(s, varExpr, colorVar) {
+  if (s.hide) return '';
+  const bg   = pyAnsiBg(s.bgColor || 'default');
+  const bold = s.bold ? '\\033[1m' : '';
+  const pre  = s.prefix || '';
+  const icon = s.icon && s.icon !== 'none' ? s.icon + ' ' : '';
+  const suf  = s.suffix || '';
+  const mw   = (s.maxWidth > 0) ? s.maxWidth : 0;
+  const inner = mw > 0 ? `(str(${varExpr}))[:${mw}]` : varExpr;
+  return `parts.append(f"${pre}${icon}${bg}${bold}{${colorVar}}{${inner}}\\033[0m${suf}")`;
+}
+
+export function gradientNodeOut(s, varExpr, colorVar) {
+  if (s.hide) return '';
+  const bg   = nodeAnsiBg(s.bgColor || 'default');
+  const bold = s.bold ? '\\x1b[1m' : '';
+  const pre  = s.prefix || '';
+  const icon = s.icon && s.icon !== 'none' ? s.icon + ' ' : '';
+  const suf  = s.suffix || '';
+  const mw   = (s.maxWidth > 0) ? s.maxWidth : 0;
+  if (mw > 0) {
+    return `parts.push(\`${pre}${icon}${bg}${bold}\${${colorVar}}\${String(${varExpr}).slice(0,${mw})}\\x1b[0m${suf}\`);`;
+  }
+  return `parts.push(\`${pre}${icon}${bg}${bold}\${${colorVar}}\${${varExpr}}\\x1b[0m${suf}\`);`;
+}
+
 // ─── Segment definitions ──────────────────────────
 export const SEGMENT_DEFS = [
   { id: 'model',      label: 'Model Name',     icon: '◆', group: 'Model & Session',  color: 'blue',
@@ -179,22 +223,52 @@ export const SEGMENT_DEFS = [
   },
   { id: 'ctx_bar',    label: 'Context Bar',    icon: '▓', group: 'Context',          color: 'green',
     preview: () => '▓▓░░░░░░░░ 8%',
-    bash: s => `PCT=$(echo "$input" | jq -r '.context_window.used_percentage // 0' | cut -d. -f1)\nBAR_WIDTH=${s.barWidth||10}\nFILLED=$((PCT * BAR_WIDTH / 100))\nEMPTY=$((BAR_WIDTH - FILLED))\nBAR=""\n[ "$FILLED" -gt 0 ] && printf -v FILL "%\${FILLED}s" && BAR="\${FILL// /▓}"\n[ "$EMPTY" -gt 0 ] && printf -v PAD "%\${EMPTY}s" && BAR="\${BAR}\${PAD// /░}"`,
-    pyVar: s => `pct = int(data.get("context_window", {}).get("used_percentage", 0) or 0)\n    bar_w = ${s.barWidth||10}\n    filled = pct * bar_w // 100\n    ctx_bar = "▓" * filled + "░" * (bar_w - filled)`,
-    nodeVar: s => `const pct = Math.floor(data.context_window?.used_percentage || 0);\n    const barW = ${s.barWidth||10};\n    const filled = Math.floor(pct * barW / 100);\n    const ctxBar = "▓".repeat(filled) + "░".repeat(barW - filled);`,
-    bashOut: s => renderBashOut(s, '"$BAR $PCT%"'),
-    pyOut: s => renderPyOut(s, 'f"{ctx_bar} {pct}%"'),
-    nodeOut: s => renderNodeOut(s, '`${ctxBar} ${pct}%`'),
-    editorFields: [{ type:'number', key:'barWidth', label:'Bar Width', min:4, max:40 }],
+    bash: s => {
+      const base = `PCT=$(echo "$input" | jq -r '.context_window.used_percentage // 0' | cut -d. -f1)\nBAR_WIDTH=${s.barWidth||10}\nFILLED=$((PCT * BAR_WIDTH / 100))\nEMPTY=$((BAR_WIDTH - FILLED))\nBAR=""\n[ "$FILLED" -gt 0 ] && printf -v FILL "%\${FILLED}s" && BAR="\${FILL// /▓}"\n[ "$EMPTY" -gt 0 ] && printf -v PAD "%\${EMPTY}s" && BAR="\${BAR}\${PAD// /░}"`;
+      if (!s.gradient) return base;
+      return `${base}\nCTX_BAR_COLOR=$GREEN\n[ "$PCT" -ge 50 ] && CTX_BAR_COLOR=$YELLOW\n[ "$PCT" -ge 80 ] && CTX_BAR_COLOR=$RED`;
+    },
+    pyVar: s => {
+      const base = `pct = int(data.get("context_window", {}).get("used_percentage", 0) or 0)\n    bar_w = ${s.barWidth||10}\n    filled = pct * bar_w // 100\n    ctx_bar = "▓" * filled + "░" * (bar_w - filled)`;
+      if (!s.gradient) return base;
+      return `${base}\n    ctx_bar_color = "\\033[32m" if pct < 50 else ("\\033[33m" if pct < 80 else "\\033[31m")`;
+    },
+    nodeVar: s => {
+      const base = `const pct = Math.floor(data.context_window?.used_percentage || 0);\n    const barW = ${s.barWidth||10};\n    const filled = Math.floor(pct * barW / 100);\n    const ctxBar = "▓".repeat(filled) + "░".repeat(barW - filled);`;
+      if (!s.gradient) return base;
+      return `${base}\n    const ctxBarColor = pct < 50 ? "\\x1b[32m" : pct < 80 ? "\\x1b[33m" : "\\x1b[31m";`;
+    },
+    bashOut: s => s.gradient ? gradientBashOut(s, '"$BAR $PCT%"', '${CTX_BAR_COLOR}') : renderBashOut(s, '"$BAR $PCT%"'),
+    pyOut:   s => s.gradient ? gradientPyOut(s, 'f"{ctx_bar} {pct}%"', 'ctx_bar_color') : renderPyOut(s, 'f"{ctx_bar} {pct}%"'),
+    nodeOut: s => s.gradient ? gradientNodeOut(s, '`${ctxBar} ${pct}%`', 'ctxBarColor') : renderNodeOut(s, '`${ctxBar} ${pct}%`'),
+    editorFields: [
+      { type:'number', key:'barWidth', label:'Bar Width', min:4, max:40 },
+      { type:'toggle', key:'gradient', label:'Gradient (green→yellow→red by %)' },
+    ],
   },
   { id: 'ctx_pct',    label: 'Context %',      icon: '%', group: 'Context',          color: 'green',
     preview: () => '8%',
-    bash: s => `CTX_PCT=$(echo "$input" | jq -r '.context_window.used_percentage // 0' | cut -d. -f1)`,
-    pyVar: 'ctx_pct = int(data.get("context_window", {}).get("used_percentage", 0) or 0)',
-    nodeVar: `const ctxPct = Math.floor(data.context_window?.used_percentage || 0);`,
-    bashOut: s => renderBashOut(s, '"${CTX_PCT}%"'),
-    pyOut: s => renderPyOut(s, 'f"{ctx_pct}%"'),
-    nodeOut: s => renderNodeOut(s, '`${ctxPct}%`'),
+    bash: s => {
+      const base = `CTX_PCT=$(echo "$input" | jq -r '.context_window.used_percentage // 0' | cut -d. -f1)`;
+      if (!s.gradient) return base;
+      return `${base}\nCTX_PCT_COLOR=$GREEN\n[ "$CTX_PCT" -ge 50 ] && CTX_PCT_COLOR=$YELLOW\n[ "$CTX_PCT" -ge 80 ] && CTX_PCT_COLOR=$RED`;
+    },
+    pyVar: s => {
+      const base = 'ctx_pct = int(data.get("context_window", {}).get("used_percentage", 0) or 0)';
+      if (!s.gradient) return base;
+      return `${base}\n    ctx_pct_color = "\\033[32m" if ctx_pct < 50 else ("\\033[33m" if ctx_pct < 80 else "\\033[31m")`;
+    },
+    nodeVar: s => {
+      const base = `const ctxPct = Math.floor(data.context_window?.used_percentage || 0);`;
+      if (!s.gradient) return base;
+      return `${base}\n    const ctxPctColor = ctxPct < 50 ? "\\x1b[32m" : ctxPct < 80 ? "\\x1b[33m" : "\\x1b[31m";`;
+    },
+    bashOut: s => s.gradient ? gradientBashOut(s, '"${CTX_PCT}%"', '${CTX_PCT_COLOR}') : renderBashOut(s, '"${CTX_PCT}%"'),
+    pyOut:   s => s.gradient ? gradientPyOut(s, 'f"{ctx_pct}%"', 'ctx_pct_color') : renderPyOut(s, 'f"{ctx_pct}%"'),
+    nodeOut: s => s.gradient ? gradientNodeOut(s, '`${ctxPct}%`', 'ctxPctColor') : renderNodeOut(s, '`${ctxPct}%`'),
+    editorFields: [
+      { type:'toggle', key:'gradient', label:'Gradient (green→yellow→red by %)' },
+    ],
   },
   { id: 'cost',       label: 'Cost',           icon: '$', group: 'Cost & Time',      color: 'yellow',
     preview: () => '$0.01',
