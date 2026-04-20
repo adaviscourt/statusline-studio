@@ -6,6 +6,36 @@ import { renderCanvas } from './canvas.js';
 const ICONS_SYMBOLS = ['none','◆','⬡','◈','◉','◎','⬧','▓','⬚','⎇','$','%','±','✦','◌','⬦','│','·','❯','—'];
 const ICONS_EMOJI   = ['📁','🌿','💰','⚙','🔒','🧪','⏱','⚡','🔥','💡','📊','🎯','🔗','📝','🚀','⚠️','✅','🌐','🔑','📦','🛠️','💻','🤖','⭐','🧩'];
 
+let _emojiPickerCb = null;
+function openEmojiPicker(cb) {
+  _emojiPickerCb = cb;
+  const modal = document.getElementById('emojiModal');
+  modal.classList.add('visible');
+  const picker = document.getElementById('emojiPicker');
+  if (!picker._bound) {
+    picker._bound = true;
+    picker.addEventListener('emoji-click', e => {
+      const unicode = e.detail.unicode;
+      if (_emojiPickerCb) _emojiPickerCb(unicode);
+      document.getElementById('emojiModal').classList.remove('visible');
+    });
+  }
+}
+function _initEmojiModal() {
+  const closeBtn = document.getElementById('closeEmojiBtn');
+  const modal = document.getElementById('emojiModal');
+  if (!closeBtn || !modal) return;
+  closeBtn.addEventListener('click', () => modal.classList.remove('visible'));
+  modal.addEventListener('click', e => {
+    if (e.target.id === 'emojiModal') modal.classList.remove('visible');
+  });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _initEmojiModal);
+} else {
+  _initEmojiModal();
+}
+
 export function selectSegment(rowIdx, segIdx, segUid) {
   state.selectedSegment = { rowIdx, segIdx };
   state.selectedUid = segUid;
@@ -76,7 +106,19 @@ export function renderEditor() {
     };
 
     f.appendChild(makeIconGroup(ICONS_SYMBOLS, 'Symbols'));
-    f.appendChild(makeIconGroup(ICONS_EMOJI, 'Emoji'));
+    const emojiWrap = makeIconGroup(ICONS_EMOJI, 'Emoji');
+    const moreBtn = document.createElement('div');
+    moreBtn.className = 'icon-btn';
+    moreBtn.textContent = '+';
+    moreBtn.title = 'Browse all emoji';
+    moreBtn.style.cssText = 'font-size:14px;color:var(--text2);';
+    moreBtn.onclick = () => openEmojiPicker(picked => {
+      seg.icon = picked;
+      updateSegmentInState(seg);
+      renderCanvas(); updateCode(); renderEditor();
+    });
+    emojiWrap.querySelector('.icon-picker').appendChild(moreBtn);
+    f.appendChild(emojiWrap);
     grid.appendChild(f);
   }
 

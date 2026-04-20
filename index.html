@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
 </head>
 <body>
 
@@ -55,6 +56,30 @@
     <div class="canvas-area" id="canvasArea">
       <!-- rows injected here -->
     </div>
+    <!-- BOTTOM PANEL -->
+    <div class="bottom-panel">
+      <div class="bottom-tabs">
+        <button class="tab-btn active" data-tab="bash">bash</button>
+        <button class="tab-btn" data-tab="python">python</button>
+        <button class="tab-btn" data-tab="node">node.js</button>
+        <div class="tabs-spacer"></div>
+      </div>
+      <div class="bottom-content">
+        <div class="code-pane active" id="pane-bash">
+          <button class="btn btn-ghost code-copy-btn" data-tab="bash">⎘ Copy</button>
+          <pre id="code-bash"></pre>
+        </div>
+        <div class="code-pane" id="pane-python">
+          <button class="btn btn-ghost code-copy-btn" data-tab="python">⎘ Copy</button>
+          <pre id="code-python"></pre>
+        </div>
+        <div class="code-pane" id="pane-node">
+          <button class="btn btn-ghost code-copy-btn" data-tab="node">⎘ Copy</button>
+          <pre id="code-node"></pre>
+        </div>
+        <pre id="code-settings" hidden></pre>
+      </div>
+    </div>
   </div>
 
   <!-- SEGMENT EDITOR SIDEBAR -->
@@ -73,28 +98,14 @@
 
 </div>
 
-<!-- BOTTOM PANEL -->
-<div class="bottom-panel">
-  <div class="bottom-tabs">
-    <button class="tab-btn active" data-tab="bash">bash</button>
-    <button class="tab-btn" data-tab="python">python</button>
-    <button class="tab-btn" data-tab="node">node.js</button>
-    <div class="tabs-spacer"></div>
-  </div>
-  <div class="bottom-content">
-    <div class="code-pane active" id="pane-bash">
-      <button class="btn btn-ghost code-copy-btn" data-tab="bash">⎘ Copy</button>
-      <pre id="code-bash"></pre>
+<!-- EMOJI PICKER MODAL -->
+<div class="modal-overlay" id="emojiModal">
+  <div class="settings-modal" style="max-width:400px;padding:18px 20px;">
+    <div class="settings-modal-title">Pick an emoji</div>
+    <emoji-picker id="emojiPicker" class="dark"></emoji-picker>
+    <div class="settings-modal-footer">
+      <button class="btn" id="closeEmojiBtn">Close</button>
     </div>
-    <div class="code-pane" id="pane-python">
-      <button class="btn btn-ghost code-copy-btn" data-tab="python">⎘ Copy</button>
-      <pre id="code-python"></pre>
-    </div>
-    <div class="code-pane" id="pane-node">
-      <button class="btn btn-ghost code-copy-btn" data-tab="node">⎘ Copy</button>
-      <pre id="code-node"></pre>
-    </div>
-    <pre id="code-settings" hidden></pre>
   </div>
 </div>
 
