@@ -32,22 +32,6 @@ export function initSettingsModal() {
   makePicker('set-plSepPicker', 'set-plSepCustom', PL_SEPS, 'powerlineSeparator');
   makePicker('set-plCapPicker', 'set-plCapCustom', PL_CAPS, 'powerlineCap');
 
-  document.getElementById('set-scriptType').addEventListener('change', e => {
-    state.globalSettings.scriptType = e.target.value;
-    const extMap = { bash: '~/.claude/statusline.sh', python: '~/.claude/statusline.py', node: '~/.claude/statusline.js' };
-    const pathInp = document.getElementById('set-scriptPath');
-    if (!pathInp.value || Object.values(extMap).includes(pathInp.value)) {
-      pathInp.value = extMap[e.target.value];
-      state.globalSettings.scriptPath = pathInp.value;
-    }
-    updateCode();
-  });
-
-  document.getElementById('set-scriptPath').addEventListener('input', e => {
-    state.globalSettings.scriptPath = e.target.value;
-    updateCode();
-  });
-
   document.getElementById('set-powerlineMode').addEventListener('change', e => {
     state.globalSettings.powerlineMode = e.target.checked;
     updateCode();

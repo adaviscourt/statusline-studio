@@ -13,9 +13,7 @@ export function initExportModal() {
   function refreshDialog() {
     const pathInp = document.getElementById('export-path');
     if (!pathInp.value || Object.values(DEFAULT_PATHS).includes(pathInp.value)) {
-      pathInp.value = state.globalSettings.scriptPath && Object.values(DEFAULT_PATHS).includes(state.globalSettings.scriptPath)
-        ? DEFAULT_PATHS[exportLang]
-        : (state.globalSettings.scriptPath || DEFAULT_PATHS[exportLang]);
+      pathInp.value = DEFAULT_PATHS[exportLang];
     }
     document.getElementById('export-path-display').textContent = getExportPath();
     document.getElementById('export-settings-preview').textContent = state.rawCode.settings || '';

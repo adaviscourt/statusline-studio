@@ -35,8 +35,6 @@ export const state = {
     powerlineMode: false,
     powerlineSeparator: '',
     powerlineCap: '',
-    scriptType: 'bash',
-    scriptPath: '~/.claude/statusline.sh',
   },
   rawCode: { bash: '', python: '', node: '', settings: '' },
 };

@@ -20,8 +20,6 @@ loadSettingsState();
 loadState();
 
 document.getElementById('set-powerlineMode').checked = state.globalSettings.powerlineMode;
-document.getElementById('set-scriptType').value = state.globalSettings.scriptType || 'bash';
-document.getElementById('set-scriptPath').value = state.globalSettings.scriptPath || '~/.claude/statusline.sh';
 document.getElementById('set-plSepCustom').value = state.globalSettings.powerlineSeparator || '';
 document.getElementById('set-plCapCustom').value = state.globalSettings.powerlineCap || '';
 

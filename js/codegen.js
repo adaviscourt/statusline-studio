@@ -248,8 +248,7 @@ export function generateNode() {
 }
 
 export function generateSettings() {
-  const path = state.globalSettings.scriptPath || '~/.claude/statusline.sh';
-  const obj = { statusLine: { type: 'command', command: path } };
+  const obj = { statusLine: { type: 'command', command: '~/.claude/statusline.sh' } };
   if (state.globalSettings.powerlineMode) {
     obj.statusLine.powerline = { enabled: true };
     if (state.globalSettings.powerlineSeparator) obj.statusLine.powerline.separator = state.globalSettings.powerlineSeparator;
