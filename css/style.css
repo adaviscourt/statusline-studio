@@ -909,6 +909,10 @@ pre {
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
+.export-track-primary {
+  border-color: rgba(62,207,142,0.35);
+  background: linear-gradient(180deg, rgba(62,207,142,0.08), var(--bg3));
+}
 .export-track-header {
   display: flex;
   flex-direction: column;
@@ -919,6 +923,21 @@ pre {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
+}
+.export-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: rgba(62,207,142,0.12);
+  border: 1px solid rgba(62,207,142,0.25);
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
 }
 .export-track-desc {
   font-family: var(--font-sans);
@@ -935,6 +954,30 @@ pre {
   gap: 8px;
 }
 .export-manual-actions .btn { flex: 1; justify-content: center; text-align: center; }
+.export-installer-preview {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg1);
+  overflow: hidden;
+}
+.export-installer-preview summary {
+  padding: 9px 11px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 11px;
+  user-select: none;
+}
+.export-installer-preview summary:hover { color: var(--text); }
+.export-installer-preview pre {
+  max-height: 180px;
+  overflow: auto;
+  padding: 0 11px 11px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text2);
+  white-space: pre;
+}
 .export-divider {
   display: flex;
   align-items: center;
