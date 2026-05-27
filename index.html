@@ -131,30 +131,34 @@
       </div>
     </div>
 
-    <div class="export-track">
+    <div class="export-track export-track-primary">
       <div class="export-track-header">
-        <span class="export-track-label">One-liner install</span>
-        <span class="export-track-desc">Saves the script and updates settings.json automatically</span>
+        <span class="export-track-label">Manual install <span class="export-badge">Recommended</span></span>
+        <span class="export-track-desc">Download the script and copy the settings snippet yourself</span>
       </div>
       <div class="export-what">
-        <div class="export-what-row"><span class="dot">•</span><span>Writes script to <span class="path" id="export-path-display">~/.claude/statusline.sh</span></span></div>
-        <div class="export-what-row"><span class="dot">•</span><span>Merges into <span class="path">~/.claude/settings.json</span>:</span></div>
+        <div class="export-what-row"><span class="dot">•</span><span>Save script as <span class="path" id="export-path-display">~/.claude/statusline.sh</span></span></div>
+        <div class="export-what-row"><span class="dot">•</span><span>Paste this into <span class="path">~/.claude/settings.json</span>:</span></div>
         <pre class="export-settings-preview" id="export-settings-preview"></pre>
       </div>
-      <button class="btn btn-primary export-track-btn" id="export-install-btn">⎘ Copy Install Command</button>
+      <div class="export-manual-actions">
+        <button class="btn btn-primary export-track-btn" id="export-save-btn">↓ Download Script</button>
+        <button class="btn export-track-btn" id="export-copy-settings-btn">⎘ Copy settings.json snippet</button>
+      </div>
     </div>
 
-    <div class="export-divider"><span>or install manually</span></div>
+    <div class="export-divider"><span>or quick install</span></div>
 
     <div class="export-track">
       <div class="export-track-header">
-        <span class="export-track-label">Manual install</span>
-        <span class="export-track-desc">Download the script — you add settings.json yourself</span>
+        <span class="export-track-label">Quick install</span>
+        <span class="export-track-desc">Copies a generated installer that writes the script and updates settings.json</span>
       </div>
-      <div class="export-manual-actions">
-        <button class="btn export-track-btn" id="export-save-btn">↓ Save Script</button>
-        <button class="btn export-track-btn" id="export-copy-settings-btn">⎘ Copy settings.json snippet</button>
-      </div>
+      <details class="export-installer-preview" open>
+        <summary>Preview installer</summary>
+        <pre id="export-installer-preview"></pre>
+      </details>
+      <button class="btn export-track-btn" id="export-install-btn">⎘ Copy Quick Install Command</button>
     </div>
 
     <div class="export-modal-footer">
