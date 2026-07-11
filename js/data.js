@@ -132,6 +132,82 @@ export function renderNodeOut(s, varExpr) {
   return `parts.push(\`${pre}${icon}${bg}${bold}${c.o}\${${varExpr}}${reset}${suf}\`);`;
 }
 
+function renderBashHyperlinkOut(s, varExpr, urlVar) {
+  if (s.hide) return '';
+  const fg    = bashColorOpen(s.color);
+  const bg    = BASH_BG_VAR[s.bgColor || 'default'] || '';
+  const boldO = s.bold ? '${BOLD}' : '';
+  const close = (fg || bg || boldO) ? '${RESET}' : '';
+  const icon  = (s.icon && s.icon !== 'none') ? s.icon + ' ' : '';
+  const pre   = s.prefix || '';
+  const suf   = s.suffix || '';
+  const rawVar = varExpr.replace(/^"|"$/g, '');
+  const mw = (s.maxWidth > 0) ? s.maxWidth : 0;
+  const truncate = mw > 0 ? ` __v="\${__v:0:${mw}}";` : '';
+  return `{ __v="${pre}${icon}${rawVar}${suf}";${truncate} parts+=($'\\033]8;;'"${urlVar}"$'\\033\\\\'"${bg}${boldO}${fg}\${__v}${close}"$'\\033]8;;\\033\\\\'); }`;
+}
+
+function renderPyHyperlinkOut(s, varExpr, urlExpr) {
+  if (s.hide) return '';
+  const c     = pyAnsi(s.color);
+  const bg    = pyAnsiBg(s.bgColor || 'default');
+  const bold  = s.bold ? '\\033[1m' : '';
+  const reset = (c.o || bg || bold) ? '\\033[0m' : '';
+  const pre   = s.prefix || '';
+  const icon  = s.icon && s.icon !== 'none' ? s.icon + ' ' : '';
+  const suf   = s.suffix || '';
+  const mw    = (s.maxWidth > 0) ? s.maxWidth : 0;
+  const slice = mw > 0 ? `[:${mw}]` : '';
+  return `__v = (${JSON.stringify(pre + icon)} + str(${varExpr}) + ${JSON.stringify(suf)})${slice}\nparts.append(f"\\033]8;;{${urlExpr}}\\033\\\\${bg}${bold}${c.o}{__v}${reset}\\033]8;;\\033\\\\")`;
+}
+
+function renderNodeHyperlinkOut(s, varExpr, urlExpr) {
+  if (s.hide) return '';
+  const c     = nodeAnsi(s.color);
+  const bg    = nodeAnsiBg(s.bgColor || 'default');
+  const bold  = s.bold ? '\\x1b[1m' : '';
+  const reset = (c.o || bg || bold) ? '\\x1b[0m' : '';
+  const pre   = s.prefix || '';
+  const icon  = s.icon && s.icon !== 'none' ? s.icon + ' ' : '';
+  const suf   = s.suffix || '';
+  const mw    = (s.maxWidth > 0) ? s.maxWidth : 0;
+  const textExpr = `${JSON.stringify(pre + icon)} + String(${varExpr}) + ${JSON.stringify(suf)}`;
+  const visible = mw > 0 ? `(${textExpr}).slice(0,${mw})` : textExpr;
+  return `const __v = ${visible};\nparts.push(\`\\x1b]8;;\${${urlExpr}}\\x1b\\\\${bg}${bold}${c.o}\${__v}${reset}\\x1b]8;;\\x1b\\\\\`);`;
+}
+
+function gitPrDisplayMode(s) {
+  return ['name', 'title', 'both'].includes(s.prDisplayMode) ? s.prDisplayMode : 'both';
+}
+
+function gitPrBashTextExpr(s) {
+  const mode = gitPrDisplayMode(s);
+  if (mode === 'name') return '$GIT_PR_NUMBER';
+  if (mode === 'title') return '$GIT_PR_TITLE';
+  return '"${GIT_PR_NUMBER} ${GIT_PR_TITLE}"';
+}
+
+function gitPrPyTextExpr(s) {
+  const mode = gitPrDisplayMode(s);
+  if (mode === 'name') return 'git_pr_number';
+  if (mode === 'title') return 'git_pr_title';
+  return 'f"{git_pr_number} {git_pr_title}"';
+}
+
+function gitPrNodeTextExpr(s) {
+  const mode = gitPrDisplayMode(s);
+  if (mode === 'name') return 'gitPrNumber';
+  if (mode === 'title') return 'gitPrTitle';
+  return '`' + '${gitPrNumber} ${gitPrTitle}' + '`';
+}
+
+function gitPrPreview(s) {
+  const mode = gitPrDisplayMode(s);
+  if (mode === 'name') return '#123';
+  if (mode === 'title') return 'fix: x';
+  return '#123 fix: x';
+}
+
 // ─── Gradient output renderers (runtime color var) ─
 // Used by context widgets when `gradient` is enabled. The color var is chosen
 // at statusline-runtime based on percentage, so the static seg.color is ignored.
@@ -497,13 +573,28 @@ export const SEGMENT_DEFS = [
     nodeOut: s => `if (gitConflicts) { ${renderNodeOut(s, '`${gitConflicts} conflicts`')} }`,
   },
   { id: 'git_pr',       label: 'Git PR',          icon: '⬦', group: 'Git · Remote',    color: 'blue',
-    preview: () => '#123 fix: x',
-    bash: () => `GIT_PR=$(gh pr view --json number,title 2>/dev/null | jq -r '"#"+(.number|tostring)+" "+.title' 2>/dev/null || echo '')`,
-    pyVar: `try:\n        import json as _json\n        _pr=_json.loads(subprocess.check_output(["gh","pr","view","--json","number,title"],stderr=subprocess.DEVNULL,text=True))\n        git_pr=f"#{_pr['number']} {_pr['title']}"\n    except:\n        git_pr=""`,
-    nodeVar: `let gitPr='';\n    try{const _pr=JSON.parse(require('child_process').execSync('gh pr view --json number,title',{encoding:'utf8',stdio:['pipe','pipe','ignore']}));gitPr=\`#\${_pr.number} \${_pr.title}\`;}catch{}`,
-    bashOut: s => `[ -n "$GIT_PR" ] && ${renderBashOut(s, '$GIT_PR')}`,
-    pyOut: s => `if git_pr:\n    ${renderPyOut(s, 'git_pr')}`,
-    nodeOut: s => `if (gitPr) { ${renderNodeOut(s, 'gitPr')} }`,
+    editorFields: [{ type:'select', key:'prDisplayMode', label:'PR Display', options:['both','name','title'] }],
+    preview: gitPrPreview,
+    bash: () => `GIT_PR_JSON=$(gh pr view --json number,title,url 2>/dev/null || echo '')\nif [ -n "$GIT_PR_JSON" ]; then\n  GIT_PR_NUMBER=$(printf '%s' "$GIT_PR_JSON" | jq -r 'if .number then "#"+(.number|tostring) else empty end' 2>/dev/null)\n  GIT_PR_TITLE=$(printf '%s' "$GIT_PR_JSON" | jq -r '.title // empty' 2>/dev/null)\n  GIT_PR_URL=$(printf '%s' "$GIT_PR_JSON" | jq -r '.url // empty' 2>/dev/null)\nelse\n  GIT_PR_NUMBER=''; GIT_PR_TITLE=''; GIT_PR_URL=''\nfi`,
+    pyVar: `try:\n    import json as _json\n    _pr=_json.loads(subprocess.check_output(["gh","pr","view","--json","number,title,url"],stderr=subprocess.DEVNULL,text=True))\n    git_pr_number=f"#{_pr['number']}" if _pr.get("number") else ""\n    git_pr_title=_pr.get("title") or ""\n    git_pr_url=_pr.get("url") or ""\nexcept:\n    git_pr_number=""; git_pr_title=""; git_pr_url=""`,
+    nodeVar: `let gitPrNumber='', gitPrTitle='', gitPrUrl='';\n    try{const _pr=JSON.parse(require('child_process').execSync('gh pr view --json number,title,url',{encoding:'utf8',stdio:['pipe','pipe','ignore']}));gitPrNumber=_pr.number?\`#\${_pr.number}\`:'';gitPrTitle=_pr.title||'';gitPrUrl=_pr.url||'';}catch{}`,
+    bashOut: s => {
+      const mode = gitPrDisplayMode(s);
+      const required = mode === 'both'
+        ? '[ -n "$GIT_PR_NUMBER" ] && [ -n "$GIT_PR_TITLE" ]'
+        : `[ -n "${mode === 'title' ? '$GIT_PR_TITLE' : '$GIT_PR_NUMBER'}" ]`;
+      return `[ -n "$GIT_PR_URL" ] && ${required} && ${renderBashHyperlinkOut(s, gitPrBashTextExpr(s), '$GIT_PR_URL')}`;
+    },
+    pyOut: s => {
+      const mode = gitPrDisplayMode(s);
+      const required = mode === 'both' ? 'git_pr_number and git_pr_title' : (mode === 'title' ? 'git_pr_title' : 'git_pr_number');
+      return `if git_pr_url and ${required}:\n    ${renderPyHyperlinkOut(s, gitPrPyTextExpr(s), 'git_pr_url').replace(/\n/g, '\n    ')}`;
+    },
+    nodeOut: s => {
+      const mode = gitPrDisplayMode(s);
+      const required = mode === 'both' ? 'gitPrNumber && gitPrTitle' : (mode === 'title' ? 'gitPrTitle' : 'gitPrNumber');
+      return `if (gitPrUrl && ${required}) {\n    ${renderNodeHyperlinkOut(s, gitPrNodeTextExpr(s), 'gitPrUrl').replace(/\n/g, '\n    ')}\n}`;
+    },
   },
   { id: 'git_root_dir', label: 'Git Root Dir',    icon: '⬚', group: 'Git · Remote',    color: 'default',
     preview: () => 'project',
