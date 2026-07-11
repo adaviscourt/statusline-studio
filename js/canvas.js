@@ -190,6 +190,7 @@ export function makeSegDefaults(def) {
     customText: def.id === 'custom' ? 'text' : undefined,
     shaLength: 'short',
     skillsMode: 'last',
+    prDisplayMode: 'both',
     commandStr: '',
     urlHref: '',
     urlText: 'link',
