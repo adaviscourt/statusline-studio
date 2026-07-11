@@ -1,5 +1,7 @@
 ## Why
 
+GitHub issue #3 requests that the Git PR segment link directly to the pull request and support configurable PR text display.
+
 The existing Git PR segment renders the current pull request as plain text, so users cannot open the PR directly from terminals that support clickable statusline hyperlinks. It also always combines the PR number and title, while issue #3 asks for display choices that can show the PR identifier, the title, or both.
 
 ## What Changes
