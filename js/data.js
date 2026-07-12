@@ -50,6 +50,7 @@ export const ANSI_COLORS = {
 export const GRADIENT_PRESETS = [
   { id: 'sunset', label: 'Sunset', stops: ['#f06a6a', '#f0b429'] },
   { id: 'aurora', label: 'Aurora', stops: ['#3ecf8e', '#56cfcf', '#7da8ff'] },
+  { id: 'rainbow', label: 'Rainbow', stops: ['#ff8585', '#ffd166', '#5deeaa', '#56cfcf', '#7da8ff', '#da9aff'] },
   { id: 'berry', label: 'Berry', stops: ['#c67af7', '#ff8585'] },
   { id: 'ocean', label: 'Ocean', stops: ['#5b8af5', '#56cfcf'] },
   { id: 'mint', label: 'Mint', stops: ['#5deeaa', '#eef1f7'] },
