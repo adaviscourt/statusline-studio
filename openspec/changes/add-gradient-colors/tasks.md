@@ -29,3 +29,8 @@
 - [x] Validate the OpenSpec change.
 - [x] Manually verify creating widgets with fixed colors, named gradients, and custom gradients.
 - [x] Manually verify generated Bash/Python/Node statusline code for at least one named preset and one custom gradient.
+
+## 6. Feedback
+
+- [x] Confirm the Rainbow named preset is available.
+- [x] Keep emoji icons outside gradient foreground coloring in canvas, live preview, and generated Bash/Python/Node output.

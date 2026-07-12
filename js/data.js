@@ -63,6 +63,7 @@ export const DEFAULT_GRADIENT = {
 };
 
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+const EMOJI_RE = /\p{Extended_Pictographic}/u;
 
 export function isHexColor(value) {
   return HEX_COLOR_RE.test(String(value || '').trim());
@@ -110,6 +111,10 @@ export function contextThresholdGradientEnabled(segment) {
 export function cssTextGradient(stops) {
   const valid = validGradientStops(stops);
   return valid.length >= 2 ? `linear-gradient(90deg, ${valid.join(', ')})` : '';
+}
+
+export function isEmojiIcon(value) {
+  return EMOJI_RE.test(String(value || ''));
 }
 
 function shellSingleQuote(value) {
@@ -174,17 +179,27 @@ export function renderBashOut(s, varExpr) {
   const bg    = BASH_BG_VAR[s.bgColor || 'default'] || '';
   const boldO = s.bold ? '${BOLD}' : '';
   const icon  = (s.icon && s.icon !== 'none') ? s.icon + ' ' : '';
+  const plainEmojiIcon = icon && isEmojiIcon(s.icon) ? icon : '';
+  const gradientIcon = plainEmojiIcon ? '' : icon;
   const pre   = s.prefix  || '';
   const suf   = s.suffix  || '';
   const rawVar = varExpr.replace(/^"|"$/g, '');
   const mw = (s.maxWidth > 0) ? s.maxWidth : 0;
   if (hasGradient) {
-    const gradientCall = `$(__slm_gradient "$__v" ${bashGradientArgs(gradientStops)})`;
+    const gradientArgs = bashGradientArgs(gradientStops);
+    const gradientCall = `$(__slm_gradient "$__v" ${gradientArgs})`;
     const open = `${bg}${boldO}`;
-    if (mw > 0) {
-      return `{ __v="${pre}${icon}${rawVar}${suf}"; __v="\${__v:0:${mw}}"; parts+=("${open}${gradientCall}\${RESET}"); }`;
+    if (plainEmojiIcon) {
+      const tailCall = `$(__slm_gradient "$__v" ${gradientArgs})`;
+      if (mw > 0) {
+        return `{ __v="${rawVar}${suf}"; __v="\${__v:0:${mw}}"; parts+=("${open}${pre}${plainEmojiIcon}${tailCall}\${RESET}"); }`;
+      }
+      return `{ __v="${rawVar}${suf}"; parts+=("${open}${pre}${plainEmojiIcon}${tailCall}\${RESET}"); }`;
     }
-    return `{ __v="${pre}${icon}${rawVar}${suf}"; parts+=("${open}${gradientCall}\${RESET}"); }`;
+    if (mw > 0) {
+      return `{ __v="${pre}${gradientIcon}${rawVar}${suf}"; __v="\${__v:0:${mw}}"; parts+=("${open}${gradientCall}\${RESET}"); }`;
+    }
+    return `{ __v="${pre}${gradientIcon}${rawVar}${suf}"; parts+=("${open}${gradientCall}\${RESET}"); }`;
   }
   const close = (fg || bg || boldO) ? '${RESET}' : '';
   if (mw > 0) {
@@ -203,11 +218,18 @@ export function renderPyOut(s, varExpr) {
   const reset = (c.o || bg || bold) ? '\\033[0m' : '';
   const pre  = s.prefix || '';
   const icon = s.icon && s.icon !== 'none' ? s.icon + ' ' : '';
+  const plainEmojiIcon = icon && isEmojiIcon(s.icon) ? icon : '';
+  const gradientIcon = plainEmojiIcon ? '' : icon;
   const suf  = s.suffix || '';
   const mw   = (s.maxWidth > 0) ? s.maxWidth : 0;
   const inner = mw > 0 ? `(str(${varExpr}))[:${mw}]` : varExpr;
   if (hasGradient) {
-    const textExpr = `${JSON.stringify(pre + icon)} + str(${inner}) + ${JSON.stringify(suf)}`;
+    if (plainEmojiIcon) {
+      const tailExpr = `str(${inner}) + ${JSON.stringify(suf)}`;
+      const open = `${bg}${bold}`;
+      return `parts.append("${open}${pre}${plainEmojiIcon}" + _slm_gradient_text(${tailExpr}, ${pythonStops(gradientStops)}))`;
+    }
+    const textExpr = `${JSON.stringify(pre + gradientIcon)} + str(${inner}) + ${JSON.stringify(suf)}`;
     const open = `${bg}${bold}`;
     return `parts.append("${open}" + _slm_gradient_text(${textExpr}, ${pythonStops(gradientStops)}))`;
   }
@@ -224,11 +246,18 @@ export function renderNodeOut(s, varExpr) {
   const reset = (c.o || bg || bold) ? '\\x1b[0m' : '';
   const pre  = s.prefix || '';
   const icon = s.icon && s.icon !== 'none' ? s.icon + ' ' : '';
+  const plainEmojiIcon = icon && isEmojiIcon(s.icon) ? icon : '';
+  const gradientIcon = plainEmojiIcon ? '' : icon;
   const suf  = s.suffix || '';
   const mw   = (s.maxWidth > 0) ? s.maxWidth : 0;
   if (hasGradient) {
     const valueExpr = mw > 0 ? `String(${varExpr}).slice(0,${mw})` : `String(${varExpr})`;
-    const textExpr = `${JSON.stringify(pre + icon)} + ${valueExpr} + ${JSON.stringify(suf)}`;
+    if (plainEmojiIcon) {
+      const tailExpr = `${valueExpr} + ${JSON.stringify(suf)}`;
+      const open = `${bg}${bold}`;
+      return `parts.push("${open}${pre}${plainEmojiIcon}" + slmGradientText(${tailExpr}, ${nodeStops(gradientStops)}));`;
+    }
+    const textExpr = `${JSON.stringify(pre + gradientIcon)} + ${valueExpr} + ${JSON.stringify(suf)}`;
     const open = `${bg}${bold}`;
     return `parts.push("${open}" + slmGradientText(${textExpr}, ${nodeStops(gradientStops)}));`;
   }

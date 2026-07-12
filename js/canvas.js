@@ -1,4 +1,4 @@
-import { SEGMENT_DEFS, SEGMENT_GROUPS, cssTextGradient, getSegmentGradientStops, hasEnabledGradient } from './data.js';
+import { SEGMENT_DEFS, SEGMENT_GROUPS, cssTextGradient, getSegmentGradientStops, hasEnabledGradient, isEmojiIcon } from './data.js';
 import { state, uid, pushHistory, saveState, defaultGradientConfig } from './state.js';
 import { updateCode } from './codegen.js';
 import { selectSegment, deselectSegment, renderEditor } from './editor.js';
@@ -153,9 +153,11 @@ export function createChip(seg, rowIdx, segIdx) {
     label = seg.sepText || '│';
   } else if (seg.isCustom) {
     label = seg.customText || 'text';
-    chipIcon = seg.icon && seg.icon !== 'none' ? `<span class="chip-icon">${seg.icon}</span>` : '';
+    const iconClass = isEmojiIcon(seg.icon) ? ' chip-icon-emoji' : '';
+    chipIcon = seg.icon && seg.icon !== 'none' ? `<span class="chip-icon${iconClass}">${seg.icon}</span>` : '';
   } else {
-    chipIcon = seg.icon && seg.icon !== 'none' ? `<span class="chip-icon">${seg.icon}</span>` : '';
+    const iconClass = isEmojiIcon(seg.icon) ? ' chip-icon-emoji' : '';
+    chipIcon = seg.icon && seg.icon !== 'none' ? `<span class="chip-icon${iconClass}">${seg.icon}</span>` : '';
     label = seg.label || '';
   }
 

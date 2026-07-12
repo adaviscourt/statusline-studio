@@ -16,6 +16,13 @@ Each statusline widget SHALL allow gradient styling to be enabled or disabled in
 - **WHEN** the widget is rendered in the canvas, live preview, or generated output
 - **THEN** the widget content is styled with the selected gradient instead of the fixed foreground color
 
+#### Scenario: Emoji icon is not gradient-colored
+
+- **GIVEN** a widget has gradient styling enabled and uses an emoji icon
+- **WHEN** the widget is rendered in the canvas, live preview, or generated output
+- **THEN** the emoji icon is emitted without gradient foreground coloring
+- **AND** the widget text remains styled with the selected gradient
+
 ### Requirement: Named Gradient Presets
 
 The widget editor SHALL provide named gradient presets that can be applied to an individual widget.
@@ -31,6 +38,12 @@ The widget editor SHALL provide named gradient presets that can be applied to an
 - **GIVEN** named gradient presets exist
 - **WHEN** multiple widgets select the same preset
 - **THEN** each widget renders with the same preset stops while keeping independent widget settings
+
+#### Scenario: Rainbow preset is available
+
+- **GIVEN** gradient styling is enabled for a widget
+- **WHEN** the user opens the named preset selector
+- **THEN** a Rainbow preset is available for selection
 
 ### Requirement: Custom Hex Gradient Stops
 

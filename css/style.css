@@ -409,7 +409,7 @@ header {
   background: rgba(255,255,255,0.05);
 }
 
-.segment-chip.chip-gradient .chip-icon,
+.segment-chip.chip-gradient .chip-icon:not(.chip-icon-emoji),
 .segment-chip.chip-gradient .chip-label {
   background-image: var(--chip-gradient);
   -webkit-background-clip: text;

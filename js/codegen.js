@@ -1,4 +1,4 @@
-import { SEGMENT_DEFS, ANSI_COLORS, ANSI_BG_COLORS, cssTextGradient, getSegmentGradientStops, hasEnabledGradient } from './data.js';
+import { SEGMENT_DEFS, ANSI_COLORS, ANSI_BG_COLORS, cssTextGradient, getSegmentGradientStops, hasEnabledGradient, isEmojiIcon } from './data.js';
 import { state, saveState } from './state.js';
 
 // ─── Syntax highlighting ──────────────────────────
@@ -74,12 +74,19 @@ export function updatePreview() {
       const boldStyle = seg.bold ? 'font-weight:700;' : '';
       const gradient = cssTextGradient(getSegmentGradientStops(seg));
       const hasBg = bg && bg.code;
-      const gradientStyle = hasEnabledGradient(seg)
+      const usesGradient = hasEnabledGradient(seg);
+      const hasPlainEmojiIcon = usesGradient && icon && isEmojiIcon(seg.icon);
+      if (hasPlainEmojiIcon) {
+        const gradientTextStyle = `background-image:${gradient};-webkit-background-clip:text;background-clip:text;color:transparent;`;
+        const outerStyle = `${hasBg ? `background-color:${bg.css};` : ''}${boldStyle}`;
+        return `<span style="${outerStyle}"><span style="${gradientTextStyle}">${(seg.prefix||'')}</span><span>${icon}</span><span style="${gradientTextStyle}">${val}${(seg.suffix||'')}</span></span>`;
+      }
+      const gradientStyle = usesGradient
         ? (hasBg
           ? `background-image:${gradient},linear-gradient(${bg.css},${bg.css});-webkit-background-clip:text,border-box;background-clip:text,border-box;color:transparent;`
           : `background-image:${gradient};-webkit-background-clip:text;background-clip:text;color:transparent;`)
         : `color:${c.css};`;
-      const bgStyle = !hasEnabledGradient(seg) && hasBg ? `background-color:${bg.css};` : '';
+      const bgStyle = !usesGradient && hasBg ? `background-color:${bg.css};` : '';
       const colorStyle = `${gradientStyle}${bgStyle}${boldStyle}`;
       return `<span style="${colorStyle}">${(seg.prefix||'')}${icon}${val}${(seg.suffix||'')}</span>`;
     }).join(' ');
