@@ -87,6 +87,7 @@ function ensureGradientConfig(seg) {
     };
   }
   if (!seg.gradient.preset) seg.gradient.preset = DEFAULT_GRADIENT.preset;
+  if (typeof seg.gradient.animated !== 'boolean') seg.gradient.animated = DEFAULT_GRADIENT.animated;
   if (!Array.isArray(seg.gradient.stops) || seg.gradient.stops.length < 2) {
     seg.gradient.stops = [...presetGradient(seg.gradient.preset).stops];
   }
@@ -196,6 +197,21 @@ export function renderEditor() {
     enabledLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'Use text gradient' }));
     fg.appendChild(enabledLabel);
 
+    const animatedLabel = document.createElement('label');
+    animatedLabel.className = 'editor-toggle';
+    const animatedInput = document.createElement('input');
+    animatedInput.type = 'checkbox';
+    animatedInput.checked = gradient.animated === true;
+    animatedInput.disabled = !gradient.enabled;
+    animatedInput.onchange = () => {
+      gradient.animated = animatedInput.checked;
+      updateSegmentInState(seg);
+      renderCanvas(); updateCode(); renderEditor();
+    };
+    animatedLabel.appendChild(animatedInput);
+    animatedLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'Animate gradient' }));
+    fg.appendChild(animatedLabel);
+
     const presetRow = document.createElement('div');
     presetRow.className = 'gradient-preset-row';
     const presetSelect = document.createElement('select');
@@ -221,7 +237,7 @@ export function renderEditor() {
     presetRow.appendChild(presetSelect);
 
     const preview = document.createElement('div');
-    preview.className = 'gradient-preview';
+    preview.className = 'gradient-preview' + (gradient.animated ? ' gradient-preview-animated' : '');
     preview.style.background = cssTextGradient(getSegmentGradientStops(seg));
     presetRow.appendChild(preview);
     fg.appendChild(presetRow);

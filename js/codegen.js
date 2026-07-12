@@ -76,10 +76,11 @@ export function updatePreview() {
       const hasBg = bg && bg.code;
       const usesGradient = hasEnabledGradient(seg);
       const hasPlainEmojiIcon = usesGradient && icon && isEmojiIcon(seg.icon);
+      const animatedClass = usesGradient && seg.gradient?.animated ? ' class="gradient-animated-text"' : '';
       if (hasPlainEmojiIcon) {
         const gradientTextStyle = `background-image:${gradient};-webkit-background-clip:text;background-clip:text;color:transparent;`;
         const outerStyle = `${hasBg ? `background-color:${bg.css};` : ''}${boldStyle}`;
-        return `<span style="${outerStyle}"><span style="${gradientTextStyle}">${(seg.prefix||'')}</span><span>${icon}</span><span style="${gradientTextStyle}">${val}${(seg.suffix||'')}</span></span>`;
+        return `<span style="${outerStyle}"><span${animatedClass} style="${gradientTextStyle}">${(seg.prefix||'')}</span><span>${icon}</span><span${animatedClass} style="${gradientTextStyle}">${val}${(seg.suffix||'')}</span></span>`;
       }
       const gradientStyle = usesGradient
         ? (hasBg
@@ -88,7 +89,7 @@ export function updatePreview() {
         : `color:${c.css};`;
       const bgStyle = !usesGradient && hasBg ? `background-color:${bg.css};` : '';
       const colorStyle = `${gradientStyle}${bgStyle}${boldStyle}`;
-      return `<span style="${colorStyle}">${(seg.prefix||'')}${icon}${val}${(seg.suffix||'')}</span>`;
+      return `<span${animatedClass} style="${colorStyle}">${(seg.prefix||'')}${icon}${val}${(seg.suffix||'')}</span>`;
     }).join(' ');
   });
 

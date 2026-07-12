@@ -23,6 +23,13 @@ Each statusline widget SHALL allow gradient styling to be enabled or disabled in
 - **THEN** the emoji icon is emitted without gradient foreground coloring
 - **AND** the widget text remains styled with the selected gradient
 
+#### Scenario: Widget uses animated gradient in browser preview surfaces
+
+- **GIVEN** a widget has gradient styling enabled with animation enabled
+- **WHEN** the widget is rendered in the editor preview, canvas, or live preview
+- **THEN** the gradient styling sweeps across the widget text
+- **AND** the generated Bash, Python, and Node output remains a static ANSI gradient
+
 ### Requirement: Named Gradient Presets
 
 The widget editor SHALL provide named gradient presets that can be applied to an individual widget.

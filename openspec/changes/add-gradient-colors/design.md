@@ -26,6 +26,10 @@ Named presets should be centralized in the color/style data module so the editor
 
 Custom stops should accept hex colors only. The editor should reject invalid stop values and require at least two valid stops before applying a custom gradient. Two-stop gradients are sufficient for the initial implementation, but the data model can support more stops if the UI chooses to expose that later.
 
+### Gradient Animation
+
+Animated gradients should be a per-widget opt-in flag stored on the segment gradient object. Animation applies to browser-rendered surfaces only: editor preset preview, canvas chips, and live preview. Generated terminal scripts keep static per-character ANSI gradients because Bash, Python, and Node statusline output has no portable animation primitive.
+
 ### Generated Terminal Output
 
 Terminals do not have a native gradient text primitive. Generated Bash, Python, and Node output should approximate the configured gradient by assigning ANSI 24-bit foreground color escape codes across the rendered widget text. Prefix, icon, widget value, and suffix should all remain present, and reset behavior must prevent color leakage.

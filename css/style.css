@@ -417,6 +417,13 @@ header {
   color: transparent;
 }
 
+.chip-gradient-animated .chip-icon:not(.chip-icon-emoji),
+.chip-gradient-animated .chip-label,
+.gradient-animated-text {
+  background-size: 220% 100%;
+  animation: gradient-sweep 2.8s linear infinite;
+}
+
 .chip-delete {
   display: none;
   align-items: center;
@@ -653,6 +660,25 @@ input[type=number].editor-input { width: 70px; }
   border-radius: var(--radius-sm);
   background: var(--bg3);
   flex-shrink: 0;
+}
+
+.gradient-preview-animated {
+  background-size: 220% 100% !important;
+  animation: gradient-sweep 2.8s linear infinite;
+}
+
+@keyframes gradient-sweep {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 220% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip-gradient-animated .chip-icon:not(.chip-icon-emoji),
+  .chip-gradient-animated .chip-label,
+  .gradient-animated-text,
+  .gradient-preview-animated {
+    animation: none;
+  }
 }
 
 .gradient-stop-input {

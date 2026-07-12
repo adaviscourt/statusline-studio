@@ -32,6 +32,7 @@ export function defaultGradientConfig() {
     enabled: DEFAULT_GRADIENT.enabled,
     preset: DEFAULT_GRADIENT.preset,
     stops: [...DEFAULT_GRADIENT.stops],
+    animated: DEFAULT_GRADIENT.animated,
   };
 }
 

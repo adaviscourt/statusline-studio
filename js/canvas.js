@@ -138,6 +138,7 @@ export function createChip(seg, rowIdx, segIdx) {
   if (seg.isSep) chip.classList.add('chip-sep');
   if (hasEnabledGradient(seg)) {
     chip.classList.add('chip-gradient');
+    if (seg.gradient?.animated) chip.classList.add('chip-gradient-animated');
     chip.style.setProperty('--chip-gradient', cssTextGradient(getSegmentGradientStops(seg)));
   } else if (seg.color && seg.color !== 'default') {
     chip.classList.add(`chip-color-${seg.color.replace('br-','')}`);

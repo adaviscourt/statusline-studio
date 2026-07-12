@@ -34,3 +34,4 @@
 
 - [x] Confirm the Rainbow named preset is available.
 - [x] Keep emoji icons outside gradient foreground coloring in canvas, live preview, and generated Bash/Python/Node output.
+- [x] Add opt-in animated gradients for editor preview, canvas chips, and live preview.
