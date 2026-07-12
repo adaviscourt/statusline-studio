@@ -1,4 +1,4 @@
-import { SEGMENT_DEFS, ANSI_COLORS, ANSI_BG_COLORS } from './data.js';
+import { SEGMENT_DEFS, ANSI_COLORS, ANSI_BG_COLORS, cssTextGradient, getSegmentGradientStops, hasEnabledGradient } from './data.js';
 import { state, saveState } from './state.js';
 
 // ─── Syntax highlighting ──────────────────────────
@@ -72,7 +72,15 @@ export function updatePreview() {
       const c = ANSI_COLORS[seg.color] || ANSI_COLORS.default;
       const bg = ANSI_BG_COLORS[seg.bgColor || 'default'];
       const boldStyle = seg.bold ? 'font-weight:700;' : '';
-      const colorStyle = `color:${c.css};${bg && bg.code ? `background:${bg.css};` : ''}${boldStyle}`;
+      const gradient = cssTextGradient(getSegmentGradientStops(seg));
+      const hasBg = bg && bg.code;
+      const gradientStyle = hasEnabledGradient(seg)
+        ? (hasBg
+          ? `background-image:${gradient},linear-gradient(${bg.css},${bg.css});-webkit-background-clip:text,border-box;background-clip:text,border-box;color:transparent;`
+          : `background-image:${gradient};-webkit-background-clip:text;background-clip:text;color:transparent;`)
+        : `color:${c.css};`;
+      const bgStyle = !hasEnabledGradient(seg) && hasBg ? `background-color:${bg.css};` : '';
+      const colorStyle = `${gradientStyle}${bgStyle}${boldStyle}`;
       return `<span style="${colorStyle}">${(seg.prefix||'')}${icon}${val}${(seg.suffix||'')}</span>`;
     }).join(' ');
   });
@@ -85,6 +93,91 @@ export function updatePreview() {
 }
 
 // ─── Code generation ──────────────────────────────
+
+function hasGeneratedGradient() {
+  return state.rows.flat().some(hasEnabledGradient);
+}
+
+function pushBashGradientHelper(lines) {
+  lines.push(`__slm_gradient() {
+  local text="$1"; shift
+  local stops=("$@")
+  local len=\${#text}
+  local count=\${#stops[@]}
+  if [ "$len" -eq 0 ]; then return; fi
+  if [ "$count" -lt 2 ]; then printf '%s' "$text"; return; fi
+  local last=$((count - 1))
+  local i pos scaled idx local_pos from to fr fg fb tr tg tb r g b ch
+  for ((i=0; i<len; i++)); do
+    ch="\${text:i:1}"
+    if [ "$len" -gt 1 ]; then pos=$((i * 1000 / (len - 1))); else pos=0; fi
+    scaled=$((pos * last))
+    idx=$((scaled / 1000))
+    [ "$idx" -ge "$last" ] && idx=$((last - 1))
+    local_pos=$((scaled - idx * 1000))
+    from="\${stops[idx]#\\#}"
+    to="\${stops[idx + 1]#\\#}"
+    fr=$((16#\${from:0:2})); fg=$((16#\${from:2:2})); fb=$((16#\${from:4:2}))
+    tr=$((16#\${to:0:2})); tg=$((16#\${to:2:2})); tb=$((16#\${to:4:2}))
+    r=$((fr + (tr - fr) * local_pos / 1000))
+    g=$((fg + (tg - fg) * local_pos / 1000))
+    b=$((fb + (tb - fb) * local_pos / 1000))
+    printf '\\033[38;2;%s;%s;%sm%s' "$r" "$g" "$b" "$ch"
+  done
+  printf '\\033[0m'
+}`);
+}
+
+function pushPythonGradientHelper(lines) {
+  lines.push(`def _slm_gradient_text(text, stops):
+    text = str(text)
+    if not text:
+        return ""
+    if len(stops) < 2:
+        return text
+    out = []
+    last = len(stops) - 1
+    span = max(len(text) - 1, 1)
+    for i, ch in enumerate(text):
+        pos = i / span
+        scaled = pos * last
+        idx = min(int(scaled), last - 1)
+        local = scaled - idx
+        a = stops[idx].lstrip("#")
+        b = stops[idx + 1].lstrip("#")
+        ar, ag, ab = int(a[0:2], 16), int(a[2:4], 16), int(a[4:6], 16)
+        br, bg, bb = int(b[0:2], 16), int(b[2:4], 16), int(b[4:6], 16)
+        r = round(ar + (br - ar) * local)
+        g = round(ag + (bg - ag) * local)
+        bl = round(ab + (bb - ab) * local)
+        out.append(f"\\033[38;2;{r};{g};{bl}m{ch}")
+    return "".join(out) + "\\033[0m"`);
+}
+
+function pushNodeGradientHelper(lines) {
+  lines.push(`function slmGradientText(text, stops) {
+    text = String(text);
+    if (!text) return '';
+    if (!Array.isArray(stops) || stops.length < 2) return text;
+    const chars = Array.from(text);
+    const last = stops.length - 1;
+    const span = Math.max(chars.length - 1, 1);
+    return chars.map((ch, i) => {
+        const pos = i / span;
+        const scaled = pos * last;
+        const idx = Math.min(Math.floor(scaled), last - 1);
+        const local = scaled - idx;
+        const a = stops[idx].replace('#', '');
+        const b = stops[idx + 1].replace('#', '');
+        const ar = parseInt(a.slice(0, 2), 16), ag = parseInt(a.slice(2, 4), 16), ab = parseInt(a.slice(4, 6), 16);
+        const br = parseInt(b.slice(0, 2), 16), bg = parseInt(b.slice(2, 4), 16), bb = parseInt(b.slice(4, 6), 16);
+        const r = Math.round(ar + (br - ar) * local);
+        const g = Math.round(ag + (bg - ag) * local);
+        const bl = Math.round(ab + (bb - ab) * local);
+        return \`\\x1b[38;2;\${r};\${g};\${bl}m\${ch}\`;
+    }).join('') + '\\x1b[0m';
+}`);
+}
 
 export function generateBash() {
   const lines = [];
@@ -102,6 +195,10 @@ export function generateBash() {
   lines.push("BG_BR_BLACK=$'\\033[100m'; BG_BR_RED=$'\\033[101m'; BG_BR_GREEN=$'\\033[102m'; BG_BR_YELLOW=$'\\033[103m'");
   lines.push("BG_BR_BLUE=$'\\033[104m'; BG_BR_MAGENTA=$'\\033[105m'; BG_BR_CYAN=$'\\033[106m'; BG_BR_WHITE=$'\\033[107m'");
   lines.push('');
+  if (hasGeneratedGradient()) {
+    pushBashGradientHelper(lines);
+    lines.push('');
+  }
 
   const declared = new Set();
   state.rows.flat().forEach(seg => {
@@ -149,6 +246,10 @@ export function generatePython() {
   if (needsGit) lines.push('import subprocess, os');
 
   lines.push('');
+  if (hasGeneratedGradient()) {
+    pushPythonGradientHelper(lines);
+    lines.push('');
+  }
   lines.push('data = json.load(sys.stdin)');
   lines.push('');
 
@@ -159,7 +260,7 @@ export function generatePython() {
     if (!def || declared.has(seg.id)) return;
     const varDecl = typeof def.pyVar === 'string' ? def.pyVar : (typeof def.pyVar === 'function' ? def.pyVar(seg) : '');
     if (varDecl) {
-      lines.push(varDecl);
+      lines.push(varDecl.replace(/\n    /g, '\n'));
       declared.add(seg.id);
     }
   });
@@ -202,6 +303,10 @@ export function generateNode() {
   }
 
   lines.push('');
+  if (hasGeneratedGradient()) {
+    pushNodeGradientHelper(lines);
+    lines.push('');
+  }
   lines.push("let input = '';");
   lines.push("process.stdin.on('data', chunk => input += chunk);");
   lines.push("process.stdin.on('end', () => {");

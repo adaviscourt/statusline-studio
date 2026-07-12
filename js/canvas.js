@@ -1,5 +1,5 @@
-import { SEGMENT_DEFS, SEGMENT_GROUPS } from './data.js';
-import { state, uid, pushHistory, saveState } from './state.js';
+import { SEGMENT_DEFS, SEGMENT_GROUPS, cssTextGradient, getSegmentGradientStops, hasEnabledGradient } from './data.js';
+import { state, uid, pushHistory, saveState, defaultGradientConfig } from './state.js';
 import { updateCode } from './codegen.js';
 import { selectSegment, deselectSegment, renderEditor } from './editor.js';
 
@@ -136,7 +136,12 @@ export function createChip(seg, rowIdx, segIdx) {
   const chip = document.createElement('div');
   chip.className = 'segment-chip';
   if (seg.isSep) chip.classList.add('chip-sep');
-  if (seg.color && seg.color !== 'default') chip.classList.add(`chip-color-${seg.color.replace('br-','')}`);
+  if (hasEnabledGradient(seg)) {
+    chip.classList.add('chip-gradient');
+    chip.style.setProperty('--chip-gradient', cssTextGradient(getSegmentGradientStops(seg)));
+  } else if (seg.color && seg.color !== 'default') {
+    chip.classList.add(`chip-color-${seg.color.replace('br-','')}`);
+  }
   if (seg.hide) chip.style.opacity = '0.4';
   chip.dataset.uid = seg.uid;
   chip.dataset.rowIdx = rowIdx;
@@ -180,6 +185,7 @@ export function makeSegDefaults(def) {
     uid: uid(),
     color: def.color || 'default',
     bgColor: 'default',
+    gradient: defaultGradientConfig(),
     bold: false,
     hide: false,
     maxWidth: 0,
