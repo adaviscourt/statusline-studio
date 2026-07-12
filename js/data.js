@@ -114,6 +114,16 @@ export function cssTextGradient(stops) {
   return valid.length >= 2 ? `linear-gradient(90deg, ${valid.join(', ')})` : '';
 }
 
+export function cssLoopedTextGradient(stops) {
+  const valid = validGradientStops(stops);
+  if (valid.length < 2) return '';
+  const cycle = [...valid, valid[0]];
+  const loop = [...cycle, ...cycle.slice(1)];
+  const max = loop.length - 1;
+  const positioned = loop.map((color, index) => `${color} ${Math.round((index / max) * 10000) / 100}%`);
+  return `linear-gradient(90deg, ${positioned.join(', ')})`;
+}
+
 export function isEmojiIcon(value) {
   return EMOJI_RE.test(String(value || ''));
 }

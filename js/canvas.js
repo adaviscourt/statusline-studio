@@ -1,4 +1,4 @@
-import { SEGMENT_DEFS, SEGMENT_GROUPS, cssTextGradient, getSegmentGradientStops, hasEnabledGradient, isEmojiIcon } from './data.js';
+import { SEGMENT_DEFS, SEGMENT_GROUPS, cssLoopedTextGradient, cssTextGradient, getSegmentGradientStops, hasEnabledGradient, isEmojiIcon } from './data.js';
 import { state, uid, pushHistory, saveState, defaultGradientConfig } from './state.js';
 import { updateCode } from './codegen.js';
 import { selectSegment, deselectSegment, renderEditor } from './editor.js';
@@ -139,7 +139,8 @@ export function createChip(seg, rowIdx, segIdx) {
   if (hasEnabledGradient(seg)) {
     chip.classList.add('chip-gradient');
     if (seg.gradient?.animated) chip.classList.add('chip-gradient-animated');
-    chip.style.setProperty('--chip-gradient', cssTextGradient(getSegmentGradientStops(seg)));
+    const gradient = seg.gradient?.animated ? cssLoopedTextGradient(getSegmentGradientStops(seg)) : cssTextGradient(getSegmentGradientStops(seg));
+    chip.style.setProperty('--chip-gradient', gradient);
   } else if (seg.color && seg.color !== 'default') {
     chip.classList.add(`chip-color-${seg.color.replace('br-','')}`);
   }

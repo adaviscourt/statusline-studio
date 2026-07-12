@@ -1,4 +1,4 @@
-import { SEGMENT_DEFS, ANSI_COLORS, ANSI_BG_COLORS, cssTextGradient, getSegmentGradientStops, hasEnabledGradient, isEmojiIcon } from './data.js';
+import { SEGMENT_DEFS, ANSI_COLORS, ANSI_BG_COLORS, cssLoopedTextGradient, cssTextGradient, getSegmentGradientStops, hasEnabledGradient, isEmojiIcon } from './data.js';
 import { state, saveState } from './state.js';
 
 // ─── Syntax highlighting ──────────────────────────
@@ -72,7 +72,7 @@ export function updatePreview() {
       const c = ANSI_COLORS[seg.color] || ANSI_COLORS.default;
       const bg = ANSI_BG_COLORS[seg.bgColor || 'default'];
       const boldStyle = seg.bold ? 'font-weight:700;' : '';
-      const gradient = cssTextGradient(getSegmentGradientStops(seg));
+      const gradient = seg.gradient?.animated ? cssLoopedTextGradient(getSegmentGradientStops(seg)) : cssTextGradient(getSegmentGradientStops(seg));
       const hasBg = bg && bg.code;
       const usesGradient = hasEnabledGradient(seg);
       const hasPlainEmojiIcon = usesGradient && icon && isEmojiIcon(seg.icon);

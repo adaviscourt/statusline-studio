@@ -4,6 +4,7 @@ import {
   ANSI_BG_COLORS,
   DEFAULT_GRADIENT,
   GRADIENT_PRESETS,
+  cssLoopedTextGradient,
   cssTextGradient,
   getSegmentGradientStops,
   hasEnabledGradient,
@@ -238,7 +239,7 @@ export function renderEditor() {
 
     const preview = document.createElement('div');
     preview.className = 'gradient-preview' + (gradient.animated ? ' gradient-preview-animated' : '');
-    preview.style.background = cssTextGradient(getSegmentGradientStops(seg));
+    preview.style.background = gradient.animated ? cssLoopedTextGradient(getSegmentGradientStops(seg)) : cssTextGradient(getSegmentGradientStops(seg));
     presetRow.appendChild(preview);
     fg.appendChild(presetRow);
 
@@ -262,7 +263,7 @@ export function renderEditor() {
       gradient.stops = values.map(v => v.toLowerCase());
       updateSegmentInState(seg);
       renderCanvas(); updateCode();
-      preview.style.background = cssTextGradient(gradient.stops);
+      preview.style.background = gradient.animated ? cssLoopedTextGradient(gradient.stops) : cssTextGradient(gradient.stops);
       presetSelect.value = 'custom';
     };
 

@@ -420,7 +420,7 @@ header {
 .chip-gradient-animated .chip-icon:not(.chip-icon-emoji),
 .chip-gradient-animated .chip-label,
 .gradient-animated-text {
-  background-size: 220% 100%;
+  background-size: 200% 100%;
   animation: gradient-sweep 2.8s linear infinite;
 }
 
@@ -663,13 +663,13 @@ input[type=number].editor-input { width: 70px; }
 }
 
 .gradient-preview-animated {
-  background-size: 220% 100% !important;
+  background-size: 200% 100% !important;
   animation: gradient-sweep 2.8s linear infinite;
 }
 
 @keyframes gradient-sweep {
   0% { background-position: 0% 50%; }
-  100% { background-position: 220% 50%; }
+  100% { background-position: 100% 50%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
