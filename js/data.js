@@ -47,6 +47,103 @@ export const ANSI_COLORS = {
   bold:        { code: '1',    css: '#eef1f7' },
 };
 
+export const GRADIENT_PRESETS = [
+  { id: 'sunset', label: 'Sunset', stops: ['#f06a6a', '#f0b429'] },
+  { id: 'aurora', label: 'Aurora', stops: ['#3ecf8e', '#56cfcf', '#7da8ff'] },
+  { id: 'rainbow', label: 'Rainbow', stops: ['#ff8585', '#ffd166', '#5deeaa', '#56cfcf', '#7da8ff', '#da9aff'] },
+  { id: 'berry', label: 'Berry', stops: ['#c67af7', '#ff8585'] },
+  { id: 'ocean', label: 'Ocean', stops: ['#5b8af5', '#56cfcf'] },
+  { id: 'mint', label: 'Mint', stops: ['#5deeaa', '#eef1f7'] },
+];
+
+export const DEFAULT_GRADIENT = {
+  enabled: false,
+  preset: GRADIENT_PRESETS[0].id,
+  stops: [...GRADIENT_PRESETS[0].stops],
+  animated: false,
+};
+
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+const EMOJI_RE = /\p{Extended_Pictographic}/u;
+
+export function isHexColor(value) {
+  return HEX_COLOR_RE.test(String(value || '').trim());
+}
+
+export function normalizeHexColor(value) {
+  const color = String(value || '').trim();
+  return isHexColor(color) ? color.toLowerCase() : '';
+}
+
+export function validGradientStops(stops) {
+  if (!Array.isArray(stops)) return [];
+  return stops.map(normalizeHexColor).filter(Boolean);
+}
+
+export function hasValidHexGradient(stops) {
+  return Array.isArray(stops) && stops.length >= 2 && stops.every(isHexColor);
+}
+
+export function presetGradient(id) {
+  return GRADIENT_PRESETS.find(p => p.id === id) || GRADIENT_PRESETS[0];
+}
+
+export function isSegmentGradientObject(gradient) {
+  return !!gradient && typeof gradient === 'object' && !Array.isArray(gradient);
+}
+
+export function hasEnabledGradient(segment) {
+  return isSegmentGradientObject(segment?.gradient) && segment.gradient.enabled === true && getSegmentGradientStops(segment).length >= 2;
+}
+
+export function getSegmentGradientStops(segment) {
+  if (!isSegmentGradientObject(segment?.gradient)) return [];
+  if (segment.gradient.preset && segment.gradient.preset !== 'custom') {
+    return [...presetGradient(segment.gradient.preset).stops];
+  }
+  return validGradientStops(segment.gradient.stops);
+}
+
+export function contextThresholdGradientEnabled(segment) {
+  if (hasEnabledGradient(segment)) return false;
+  return segment?.thresholdGradient === true || segment?.gradient === true;
+}
+
+export function cssTextGradient(stops) {
+  const valid = validGradientStops(stops);
+  return valid.length >= 2 ? `linear-gradient(90deg, ${valid.join(', ')})` : '';
+}
+
+export function cssLoopedTextGradient(stops) {
+  const valid = validGradientStops(stops);
+  if (valid.length < 2) return '';
+  const cycle = [...valid, valid[0]];
+  const loop = [...cycle, ...cycle.slice(1)];
+  const max = loop.length - 1;
+  const positioned = loop.map((color, index) => `${color} ${Math.round((index / max) * 10000) / 100}%`);
+  return `linear-gradient(90deg, ${positioned.join(', ')})`;
+}
+
+export function isEmojiIcon(value) {
+  return EMOJI_RE.test(String(value || ''));
+}
+
+function shellSingleQuote(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function bashGradientArgs(stops) {
+  return stops.map(shellSingleQuote).join(' ');
+}
+
+function pythonStops(stops) {
+  return JSON.stringify(stops);
+}
+
+function nodeStops(stops) {
+  return JSON.stringify(stops);
+}
+
 // bash uses pre-declared shell vars like ${BLUE}, ${RESET}
 export const BASH_COLOR_VAR = {
   default: '', black: '${BLACK}', red: '${RED}', green: '${GREEN}',
@@ -87,15 +184,36 @@ export function nodeAnsi(color) {
 // ─── Segment output renderers ─────────────────────
 export function renderBashOut(s, varExpr) {
   if (s.hide) return '';
-  const fg    = bashColorOpen(s.color);
+  const hasGradient = hasEnabledGradient(s);
+  const gradientStops = hasGradient ? getSegmentGradientStops(s) : [];
+  const fg    = hasGradient ? '' : bashColorOpen(s.color);
   const bg    = BASH_BG_VAR[s.bgColor || 'default'] || '';
   const boldO = s.bold ? '${BOLD}' : '';
-  const close = (fg || bg || boldO) ? '${RESET}' : '';
   const icon  = (s.icon && s.icon !== 'none') ? s.icon + ' ' : '';
+  const plainEmojiIcon = icon && isEmojiIcon(s.icon) ? icon : '';
+  const gradientIcon = plainEmojiIcon ? '' : icon;
   const pre   = s.prefix  || '';
   const suf   = s.suffix  || '';
   const rawVar = varExpr.replace(/^"|"$/g, '');
   const mw = (s.maxWidth > 0) ? s.maxWidth : 0;
+  if (hasGradient) {
+    const gradientArgs = bashGradientArgs(gradientStops);
+    const gradientCall = `$(__slm_gradient "$__v" ${gradientArgs})`;
+    const open = `${bg}${boldO}`;
+    if (plainEmojiIcon) {
+      const prefixCall = pre ? `$(__slm_gradient ${shellSingleQuote(pre)} ${gradientArgs})` : '';
+      const tailCall = `$(__slm_gradient "$__v" ${gradientArgs})`;
+      if (mw > 0) {
+        return `{ __v="${rawVar}${suf}"; __v="\${__v:0:${mw}}"; parts+=("${open}${prefixCall}${plainEmojiIcon}${tailCall}\${RESET}"); }`;
+      }
+      return `{ __v="${rawVar}${suf}"; parts+=("${open}${prefixCall}${plainEmojiIcon}${tailCall}\${RESET}"); }`;
+    }
+    if (mw > 0) {
+      return `{ __v="${pre}${gradientIcon}${rawVar}${suf}"; __v="\${__v:0:${mw}}"; parts+=("${open}${gradientCall}\${RESET}"); }`;
+    }
+    return `{ __v="${pre}${gradientIcon}${rawVar}${suf}"; parts+=("${open}${gradientCall}\${RESET}"); }`;
+  }
+  const close = (fg || bg || boldO) ? '${RESET}' : '';
   if (mw > 0) {
     return `{ __v="${pre}${icon}${rawVar}${suf}"; parts+=("${bg}${boldO}${fg}\${__v:0:${mw}}${close}"); }`;
   }
@@ -104,28 +222,59 @@ export function renderBashOut(s, varExpr) {
 
 export function renderPyOut(s, varExpr) {
   if (s.hide) return '';
-  const c    = pyAnsi(s.color);
+  const hasGradient = hasEnabledGradient(s);
+  const gradientStops = hasGradient ? getSegmentGradientStops(s) : [];
+  const c    = hasGradient ? { o: '', c: '' } : pyAnsi(s.color);
   const bg   = pyAnsiBg(s.bgColor || 'default');
   const bold = s.bold ? '\\033[1m' : '';
   const reset = (c.o || bg || bold) ? '\\033[0m' : '';
   const pre  = s.prefix || '';
   const icon = s.icon && s.icon !== 'none' ? s.icon + ' ' : '';
+  const plainEmojiIcon = icon && isEmojiIcon(s.icon) ? icon : '';
+  const gradientIcon = plainEmojiIcon ? '' : icon;
   const suf  = s.suffix || '';
   const mw   = (s.maxWidth > 0) ? s.maxWidth : 0;
   const inner = mw > 0 ? `(str(${varExpr}))[:${mw}]` : varExpr;
+  if (hasGradient) {
+    if (plainEmojiIcon) {
+      const prefixExpr = JSON.stringify(pre);
+      const tailExpr = `str(${inner}) + ${JSON.stringify(suf)}`;
+      const open = `${bg}${bold}`;
+      return `parts.append("${open}" + _slm_gradient_text(${prefixExpr}, ${pythonStops(gradientStops)}) + "${plainEmojiIcon}" + _slm_gradient_text(${tailExpr}, ${pythonStops(gradientStops)}))`;
+    }
+    const textExpr = `${JSON.stringify(pre + gradientIcon)} + str(${inner}) + ${JSON.stringify(suf)}`;
+    const open = `${bg}${bold}`;
+    return `parts.append("${open}" + _slm_gradient_text(${textExpr}, ${pythonStops(gradientStops)}))`;
+  }
   return `parts.append(f"${pre}${icon}${bg}${bold}${c.o}{${inner}}${reset}${suf}")`;
 }
 
 export function renderNodeOut(s, varExpr) {
   if (s.hide) return '';
-  const c    = nodeAnsi(s.color);
+  const hasGradient = hasEnabledGradient(s);
+  const gradientStops = hasGradient ? getSegmentGradientStops(s) : [];
+  const c    = hasGradient ? { o: '', c: '' } : nodeAnsi(s.color);
   const bg   = nodeAnsiBg(s.bgColor || 'default');
   const bold = s.bold ? '\\x1b[1m' : '';
   const reset = (c.o || bg || bold) ? '\\x1b[0m' : '';
   const pre  = s.prefix || '';
   const icon = s.icon && s.icon !== 'none' ? s.icon + ' ' : '';
+  const plainEmojiIcon = icon && isEmojiIcon(s.icon) ? icon : '';
+  const gradientIcon = plainEmojiIcon ? '' : icon;
   const suf  = s.suffix || '';
   const mw   = (s.maxWidth > 0) ? s.maxWidth : 0;
+  if (hasGradient) {
+    const valueExpr = mw > 0 ? `String(${varExpr}).slice(0,${mw})` : `String(${varExpr})`;
+    if (plainEmojiIcon) {
+      const prefixExpr = JSON.stringify(pre);
+      const tailExpr = `${valueExpr} + ${JSON.stringify(suf)}`;
+      const open = `${bg}${bold}`;
+      return `parts.push("${open}" + slmGradientText(${prefixExpr}, ${nodeStops(gradientStops)}) + "${plainEmojiIcon}" + slmGradientText(${tailExpr}, ${nodeStops(gradientStops)}));`;
+    }
+    const textExpr = `${JSON.stringify(pre + gradientIcon)} + ${valueExpr} + ${JSON.stringify(suf)}`;
+    const open = `${bg}${bold}`;
+    return `parts.push("${open}" + slmGradientText(${textExpr}, ${nodeStops(gradientStops)}));`;
+  }
   if (mw > 0) {
     return `parts.push(\`${pre}${icon}${bg}${bold}${c.o}\${String(${varExpr}).slice(0,${mw})}${reset}${suf}\`);`;
   }
@@ -225,49 +374,49 @@ export const SEGMENT_DEFS = [
     preview: () => '▓▓░░░░░░░░ 8%',
     bash: s => {
       const base = `PCT=$(echo "$input" | jq -r '.context_window.used_percentage // 0' | cut -d. -f1)\nBAR_WIDTH=${s.barWidth||10}\nFILLED=$((PCT * BAR_WIDTH / 100))\nEMPTY=$((BAR_WIDTH - FILLED))\nBAR=""\n[ "$FILLED" -gt 0 ] && printf -v FILL "%\${FILLED}s" && BAR="\${FILL// /▓}"\n[ "$EMPTY" -gt 0 ] && printf -v PAD "%\${EMPTY}s" && BAR="\${BAR}\${PAD// /░}"`;
-      if (!s.gradient) return base;
+      if (!contextThresholdGradientEnabled(s)) return base;
       return `${base}\nCTX_BAR_COLOR=$GREEN\n[ "$PCT" -ge 50 ] && CTX_BAR_COLOR=$YELLOW\n[ "$PCT" -ge 80 ] && CTX_BAR_COLOR=$RED`;
     },
     pyVar: s => {
       const base = `pct = int(data.get("context_window", {}).get("used_percentage", 0) or 0)\n    bar_w = ${s.barWidth||10}\n    filled = pct * bar_w // 100\n    ctx_bar = "▓" * filled + "░" * (bar_w - filled)`;
-      if (!s.gradient) return base;
+      if (!contextThresholdGradientEnabled(s)) return base;
       return `${base}\n    ctx_bar_color = "\\033[32m" if pct < 50 else ("\\033[33m" if pct < 80 else "\\033[31m")`;
     },
     nodeVar: s => {
       const base = `const pct = Math.floor(data.context_window?.used_percentage || 0);\n    const barW = ${s.barWidth||10};\n    const filled = Math.floor(pct * barW / 100);\n    const ctxBar = "▓".repeat(filled) + "░".repeat(barW - filled);`;
-      if (!s.gradient) return base;
+      if (!contextThresholdGradientEnabled(s)) return base;
       return `${base}\n    const ctxBarColor = pct < 50 ? "\\x1b[32m" : pct < 80 ? "\\x1b[33m" : "\\x1b[31m";`;
     },
-    bashOut: s => s.gradient ? gradientBashOut(s, '"$BAR $PCT%"', '${CTX_BAR_COLOR}') : renderBashOut(s, '"$BAR $PCT%"'),
-    pyOut:   s => s.gradient ? gradientPyOut(s, 'f"{ctx_bar} {pct}%"', 'ctx_bar_color') : renderPyOut(s, 'f"{ctx_bar} {pct}%"'),
-    nodeOut: s => s.gradient ? gradientNodeOut(s, '`${ctxBar} ${pct}%`', 'ctxBarColor') : renderNodeOut(s, '`${ctxBar} ${pct}%`'),
+    bashOut: s => contextThresholdGradientEnabled(s) ? gradientBashOut(s, '"$BAR $PCT%"', '${CTX_BAR_COLOR}') : renderBashOut(s, '"$BAR $PCT%"'),
+    pyOut:   s => contextThresholdGradientEnabled(s) ? gradientPyOut(s, 'f"{ctx_bar} {pct}%"', 'ctx_bar_color') : renderPyOut(s, 'f"{ctx_bar} {pct}%"'),
+    nodeOut: s => contextThresholdGradientEnabled(s) ? gradientNodeOut(s, '`${ctxBar} ${pct}%`', 'ctxBarColor') : renderNodeOut(s, '`${ctxBar} ${pct}%`'),
     editorFields: [
       { type:'number', key:'barWidth', label:'Bar Width', min:4, max:40 },
-      { type:'toggle', key:'gradient', label:'Gradient (green→yellow→red by %)' },
+      { type:'toggle', key:'thresholdGradient', label:'Threshold gradient (green-yellow-red by %)' },
     ],
   },
   { id: 'ctx_pct',    label: 'Context %',      icon: '%', group: 'Context',          color: 'green',
     preview: () => '8%',
     bash: s => {
       const base = `CTX_PCT=$(echo "$input" | jq -r '.context_window.used_percentage // 0' | cut -d. -f1)`;
-      if (!s.gradient) return base;
+      if (!contextThresholdGradientEnabled(s)) return base;
       return `${base}\nCTX_PCT_COLOR=$GREEN\n[ "$CTX_PCT" -ge 50 ] && CTX_PCT_COLOR=$YELLOW\n[ "$CTX_PCT" -ge 80 ] && CTX_PCT_COLOR=$RED`;
     },
     pyVar: s => {
       const base = 'ctx_pct = int(data.get("context_window", {}).get("used_percentage", 0) or 0)';
-      if (!s.gradient) return base;
+      if (!contextThresholdGradientEnabled(s)) return base;
       return `${base}\n    ctx_pct_color = "\\033[32m" if ctx_pct < 50 else ("\\033[33m" if ctx_pct < 80 else "\\033[31m")`;
     },
     nodeVar: s => {
       const base = `const ctxPct = Math.floor(data.context_window?.used_percentage || 0);`;
-      if (!s.gradient) return base;
+      if (!contextThresholdGradientEnabled(s)) return base;
       return `${base}\n    const ctxPctColor = ctxPct < 50 ? "\\x1b[32m" : ctxPct < 80 ? "\\x1b[33m" : "\\x1b[31m";`;
     },
-    bashOut: s => s.gradient ? gradientBashOut(s, '"${CTX_PCT}%"', '${CTX_PCT_COLOR}') : renderBashOut(s, '"${CTX_PCT}%"'),
-    pyOut:   s => s.gradient ? gradientPyOut(s, 'f"{ctx_pct}%"', 'ctx_pct_color') : renderPyOut(s, 'f"{ctx_pct}%"'),
-    nodeOut: s => s.gradient ? gradientNodeOut(s, '`${ctxPct}%`', 'ctxPctColor') : renderNodeOut(s, '`${ctxPct}%`'),
+    bashOut: s => contextThresholdGradientEnabled(s) ? gradientBashOut(s, '"${CTX_PCT}%"', '${CTX_PCT_COLOR}') : renderBashOut(s, '"${CTX_PCT}%"'),
+    pyOut:   s => contextThresholdGradientEnabled(s) ? gradientPyOut(s, 'f"{ctx_pct}%"', 'ctx_pct_color') : renderPyOut(s, 'f"{ctx_pct}%"'),
+    nodeOut: s => contextThresholdGradientEnabled(s) ? gradientNodeOut(s, '`${ctxPct}%`', 'ctxPctColor') : renderNodeOut(s, '`${ctxPct}%`'),
     editorFields: [
-      { type:'toggle', key:'gradient', label:'Gradient (green→yellow→red by %)' },
+      { type:'toggle', key:'thresholdGradient', label:'Threshold gradient (green-yellow-red by %)' },
     ],
   },
   { id: 'cost',       label: 'Cost',           icon: '$', group: 'Cost & Time',      color: 'yellow',
@@ -339,15 +488,24 @@ export const SEGMENT_DEFS = [
     pyVar: 'try:\n        staged_out = subprocess.check_output(["git","diff","--cached","--numstat"],text=True,stderr=subprocess.DEVNULL).strip()\n        mod_out = subprocess.check_output(["git","diff","--numstat"],text=True,stderr=subprocess.DEVNULL).strip()\n        staged = len(staged_out.split("\\n")) if staged_out else 0\n        modified = len(mod_out.split("\\n")) if mod_out else 0\n    except:\n        staged = modified = 0',
     nodeVar: `let staged = 0, modified = 0;\n    try {\n        const cp = require('child_process');\n        staged = cp.execSync('git diff --cached --numstat',{encoding:'utf8',stdio:['pipe','pipe','ignore']}).trim().split('\\n').filter(Boolean).length;\n        modified = cp.execSync('git diff --numstat',{encoding:'utf8',stdio:['pipe','pipe','ignore']}).trim().split('\\n').filter(Boolean).length;\n    } catch {}`,
     bashOut: s => {
+      if (hasEnabledGradient(s)) {
+        return `GIT_ST=""\n[ "$STAGED" -gt 0 ] && GIT_ST="+\${STAGED}"\n[ "$MODIFIED" -gt 0 ] && GIT_ST="\${GIT_ST}~\${MODIFIED}"\n[ -n "$GIT_ST" ] && ${renderBashOut(s, '$GIT_ST')}`;
+      }
       const open = bashColorOpen(s.color);
       const close = bashColorClose(s.color);
       return `GIT_ST=""\n[ "$STAGED" -gt 0 ] && GIT_ST="${open}+\${STAGED}${close}"\n[ "$MODIFIED" -gt 0 ] && GIT_ST="\${GIT_ST}${open}~\${MODIFIED}${close}"\n[ -n "$GIT_ST" ] && parts+=("$GIT_ST")`;
     },
     pyOut: s => {
+      if (hasEnabledGradient(s)) {
+        return `git_st = ""\n    if staged: git_st += f"+{staged}"\n    if modified: git_st += f"~{modified}"\n    if git_st: ${renderPyOut(s, 'git_st')}`;
+      }
       const py = pyAnsi(s.color);
       return `git_st = ""\n    if staged: git_st += f"${py.o}+{staged}${py.c}"\n    if modified: git_st += f"${py.o}~{modified}${py.c}"\n    if git_st: parts.append(git_st)`;
     },
     nodeOut: s => {
+      if (hasEnabledGradient(s)) {
+        return `let gitSt = '';\n    if (staged) gitSt += \`+\${staged}\`;\n    if (modified) gitSt += \`~\${modified}\`;\n    if (gitSt) { ${renderNodeOut(s, 'gitSt')} }`;
+      }
       const nd = nodeAnsi(s.color);
       return `let gitSt = '';\n    if (staged) gitSt += \`${nd.o}+\${staged}${nd.c}\`;\n    if (modified) gitSt += \`${nd.o}~\${modified}${nd.c}\`;\n    if (gitSt) parts.push(gitSt);`;
     },
@@ -366,6 +524,9 @@ export const SEGMENT_DEFS = [
       : `const rl5h = data.rate_limits?.five_hour?.used_percentage;`,
     bashOut: s => {
       if (s.showReset) {
+        if (hasEnabledGradient(s)) {
+          return `[ -n "$RL5H" ] && { rl5h_str="5h: \${RL5H}%"; [ -n "$RL5H_RESET" ] && rl5h_str="\${rl5h_str} · \${RL5H_RESET}"; ${renderBashOut(s, '$rl5h_str')}; }`;
+        }
         const open = bashColorOpen(s.color), close = bashColorClose(s.color);
         const icon = (s.icon && s.icon !== 'none') ? s.icon + ' ' : '';
         const pre = s.prefix || '', suf = s.suffix || '';
@@ -393,6 +554,9 @@ export const SEGMENT_DEFS = [
       ? `const rl7d = data.rate_limits?.seven_day?.used_percentage;\n    const _rl7dTs = data.rate_limits?.seven_day?.resets_at;\n    const rl7dReset = _rl7dTs ? new Date(_rl7dTs * 1000).toLocaleTimeString('en',{hour:'numeric',minute:'2-digit',hour12:true}).toLowerCase().replace(' ','') : '';`
       : `const rl7d = data.rate_limits?.seven_day?.used_percentage;`,
     bashOut: s => {
+      if (s.showReset && hasEnabledGradient(s)) {
+        return `[ -n "$RL7D" ] && { rl7d_str="7d: \${RL7D}%"; [ -n "$RL7D_RESET" ] && rl7d_str="\${rl7d_str} · \${RL7D_RESET}"; ${renderBashOut(s, '$rl7d_str')}; }`;
+      }
       const open = bashColorOpen(s.color), close = bashColorClose(s.color);
       const icon = (s.icon && s.icon !== 'none') ? s.icon + ' ' : '';
       const pre = s.prefix || '', suf = s.suffix || '';
@@ -806,9 +970,9 @@ export const SEGMENT_DEFS = [
     bash: () => '',
     pyVar: '',
     nodeVar: '',
-    bashOut: s => `parts+=("${s.customText||''}")`,
-    pyOut: s => `parts.append("${s.customText||''}")`,
-    nodeOut: s => `parts.push("${s.customText||''}");`,
+    bashOut: s => renderBashOut(s, JSON.stringify(s.customText || '')),
+    pyOut: s => renderPyOut(s, JSON.stringify(s.customText || '')),
+    nodeOut: s => renderNodeOut(s, JSON.stringify(s.customText || '')),
   },
 ];
 

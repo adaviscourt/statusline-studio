@@ -1,4 +1,17 @@
-import { SEGMENT_DEFS, ANSI_COLORS, ANSI_BG_COLORS } from './data.js';
+import {
+  SEGMENT_DEFS,
+  ANSI_COLORS,
+  ANSI_BG_COLORS,
+  DEFAULT_GRADIENT,
+  GRADIENT_PRESETS,
+  cssLoopedTextGradient,
+  cssTextGradient,
+  getSegmentGradientStops,
+  hasEnabledGradient,
+  hasValidHexGradient,
+  isSegmentGradientObject,
+  presetGradient,
+} from './data.js';
 import { state } from './state.js';
 import { updateCode, updatePreview } from './codegen.js';
 import { renderCanvas } from './canvas.js';
@@ -61,6 +74,25 @@ export function updateSegmentInState(seg) {
   if (!state.selectedSegment) return;
   const { rowIdx, segIdx } = state.selectedSegment;
   state.rows[rowIdx][segIdx] = seg;
+}
+
+function ensureGradientConfig(seg) {
+  if (seg.gradient === true && seg.thresholdGradient !== true) {
+    seg.thresholdGradient = true;
+  }
+  if (!isSegmentGradientObject(seg.gradient)) {
+    seg.gradient = {
+      enabled: false,
+      preset: DEFAULT_GRADIENT.preset,
+      stops: [...DEFAULT_GRADIENT.stops],
+    };
+  }
+  if (!seg.gradient.preset) seg.gradient.preset = DEFAULT_GRADIENT.preset;
+  if (typeof seg.gradient.animated !== 'boolean') seg.gradient.animated = DEFAULT_GRADIENT.animated;
+  if (!Array.isArray(seg.gradient.stops) || seg.gradient.stops.length < 2) {
+    seg.gradient.stops = [...presetGradient(seg.gradient.preset).stops];
+  }
+  return seg.gradient;
 }
 
 export function renderEditor() {
@@ -142,6 +174,113 @@ export function renderEditor() {
   });
   fc.appendChild(cpicker);
   grid.appendChild(fc);
+
+  if (!seg.isSep) {
+    const gradient = ensureGradientConfig(seg);
+    const fg = document.createElement('div');
+    fg.className = 'editor-field';
+    fg.innerHTML = `<div class="editor-label">Gradient</div>`;
+
+    const enabledLabel = document.createElement('label');
+    enabledLabel.className = 'editor-toggle';
+    const enabledInput = document.createElement('input');
+    enabledInput.type = 'checkbox';
+    enabledInput.checked = hasEnabledGradient(seg);
+    enabledInput.onchange = () => {
+      gradient.enabled = enabledInput.checked;
+      if (gradient.enabled && gradient.preset !== 'custom') {
+        gradient.stops = [...presetGradient(gradient.preset).stops];
+      }
+      updateSegmentInState(seg);
+      renderCanvas(); updateCode(); renderEditor();
+    };
+    enabledLabel.appendChild(enabledInput);
+    enabledLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'Use text gradient' }));
+    fg.appendChild(enabledLabel);
+
+    const animatedLabel = document.createElement('label');
+    animatedLabel.className = 'editor-toggle';
+    const animatedInput = document.createElement('input');
+    animatedInput.type = 'checkbox';
+    animatedInput.checked = gradient.animated === true;
+    animatedInput.disabled = !gradient.enabled;
+    animatedInput.onchange = () => {
+      gradient.animated = animatedInput.checked;
+      updateSegmentInState(seg);
+      renderCanvas(); updateCode(); renderEditor();
+    };
+    animatedLabel.appendChild(animatedInput);
+    animatedLabel.appendChild(Object.assign(document.createElement('span'), { textContent: 'Animate gradient' }));
+    fg.appendChild(animatedLabel);
+
+    const presetRow = document.createElement('div');
+    presetRow.className = 'gradient-preset-row';
+    const presetSelect = document.createElement('select');
+    presetSelect.className = 'editor-input gradient-select';
+    GRADIENT_PRESETS.forEach(preset => {
+      const option = document.createElement('option');
+      option.value = preset.id;
+      option.textContent = preset.label;
+      option.selected = gradient.preset === preset.id;
+      presetSelect.appendChild(option);
+    });
+    const customOption = document.createElement('option');
+    customOption.value = 'custom';
+    customOption.textContent = 'Custom';
+    customOption.selected = gradient.preset === 'custom';
+    presetSelect.appendChild(customOption);
+    presetSelect.onchange = () => {
+      gradient.preset = presetSelect.value;
+      if (gradient.preset !== 'custom') gradient.stops = [...presetGradient(gradient.preset).stops];
+      updateSegmentInState(seg);
+      renderCanvas(); updateCode(); renderEditor();
+    };
+    presetRow.appendChild(presetSelect);
+
+    const preview = document.createElement('div');
+    preview.className = 'gradient-preview' + (gradient.animated ? ' gradient-preview-animated' : '');
+    preview.style.background = gradient.animated ? cssLoopedTextGradient(getSegmentGradientStops(seg)) : cssTextGradient(getSegmentGradientStops(seg));
+    presetRow.appendChild(preview);
+    fg.appendChild(presetRow);
+
+    const customStops = gradient.preset === 'custom' ? gradient.stops : [...gradient.stops];
+    while (customStops.length < 2) customStops.push('');
+    const stopsRow = document.createElement('div');
+    stopsRow.className = 'gradient-stop-row';
+    const error = document.createElement('div');
+    error.className = 'gradient-error';
+    error.textContent = 'Enter two valid #rrggbb colors';
+
+    const validateAndApplyStops = () => {
+      const values = Array.from(stopsRow.querySelectorAll('input')).map(input => input.value.trim());
+      const valid = hasValidHexGradient(values);
+      stopsRow.querySelectorAll('input').forEach(input => {
+        input.classList.toggle('invalid', !!input.value && !/^#[0-9a-fA-F]{6}$/.test(input.value.trim()));
+      });
+      error.classList.toggle('visible', !valid && values.some(Boolean));
+      if (!valid) return;
+      gradient.preset = 'custom';
+      gradient.stops = values.map(v => v.toLowerCase());
+      updateSegmentInState(seg);
+      renderCanvas(); updateCode();
+      preview.style.background = gradient.animated ? cssLoopedTextGradient(gradient.stops) : cssTextGradient(gradient.stops);
+      presetSelect.value = 'custom';
+    };
+
+    customStops.slice(0, 2).forEach((stop, idx) => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'editor-input gradient-stop-input';
+      input.placeholder = idx === 0 ? '#f06a6a' : '#f0b429';
+      input.value = stop || '';
+      input.maxLength = 7;
+      input.oninput = validateAndApplyStops;
+      stopsRow.appendChild(input);
+    });
+    fg.appendChild(stopsRow);
+    fg.appendChild(error);
+    grid.appendChild(fg);
+  }
 
   // ─ Separator text
   if (seg.isSep) {

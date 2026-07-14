@@ -1,5 +1,5 @@
-import { SEGMENT_DEFS, SEGMENT_GROUPS } from './data.js';
-import { state, uid, pushHistory, saveState } from './state.js';
+import { SEGMENT_DEFS, SEGMENT_GROUPS, cssLoopedTextGradient, cssTextGradient, getSegmentGradientStops, hasEnabledGradient, isEmojiIcon } from './data.js';
+import { state, uid, pushHistory, saveState, defaultGradientConfig } from './state.js';
 import { updateCode } from './codegen.js';
 import { selectSegment, deselectSegment, renderEditor } from './editor.js';
 
@@ -136,7 +136,14 @@ export function createChip(seg, rowIdx, segIdx) {
   const chip = document.createElement('div');
   chip.className = 'segment-chip';
   if (seg.isSep) chip.classList.add('chip-sep');
-  if (seg.color && seg.color !== 'default') chip.classList.add(`chip-color-${seg.color.replace('br-','')}`);
+  if (hasEnabledGradient(seg)) {
+    chip.classList.add('chip-gradient');
+    if (seg.gradient?.animated) chip.classList.add('chip-gradient-animated');
+    const gradient = seg.gradient?.animated ? cssLoopedTextGradient(getSegmentGradientStops(seg)) : cssTextGradient(getSegmentGradientStops(seg));
+    chip.style.setProperty('--chip-gradient', gradient);
+  } else if (seg.color && seg.color !== 'default') {
+    chip.classList.add(`chip-color-${seg.color.replace('br-','')}`);
+  }
   if (seg.hide) chip.style.opacity = '0.4';
   chip.dataset.uid = seg.uid;
   chip.dataset.rowIdx = rowIdx;
@@ -148,9 +155,11 @@ export function createChip(seg, rowIdx, segIdx) {
     label = seg.sepText || '│';
   } else if (seg.isCustom) {
     label = seg.customText || 'text';
-    chipIcon = seg.icon && seg.icon !== 'none' ? `<span class="chip-icon">${seg.icon}</span>` : '';
+    const iconClass = isEmojiIcon(seg.icon) ? ' chip-icon-emoji' : '';
+    chipIcon = seg.icon && seg.icon !== 'none' ? `<span class="chip-icon${iconClass}">${seg.icon}</span>` : '';
   } else {
-    chipIcon = seg.icon && seg.icon !== 'none' ? `<span class="chip-icon">${seg.icon}</span>` : '';
+    const iconClass = isEmojiIcon(seg.icon) ? ' chip-icon-emoji' : '';
+    chipIcon = seg.icon && seg.icon !== 'none' ? `<span class="chip-icon${iconClass}">${seg.icon}</span>` : '';
     label = seg.label || '';
   }
 
@@ -180,6 +189,7 @@ export function makeSegDefaults(def) {
     uid: uid(),
     color: def.color || 'default',
     bgColor: 'default',
+    gradient: defaultGradientConfig(),
     bold: false,
     hide: false,
     maxWidth: 0,

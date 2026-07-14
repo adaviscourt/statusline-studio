@@ -1,4 +1,4 @@
-import { SEGMENT_DEFS } from './data.js';
+import { SEGMENT_DEFS, DEFAULT_GRADIENT } from './data.js';
 
 export function uid() {
   return Math.random().toString(36).slice(2, 9);
@@ -25,6 +25,15 @@ function DEFAULT_ROWS() {
       { ...SEGMENT_DEFS.find(d=>d.id==='ctx_pct'),     uid: uid(), icon: '%', color: 'green' },
     ],
   ];
+}
+
+export function defaultGradientConfig() {
+  return {
+    enabled: DEFAULT_GRADIENT.enabled,
+    preset: DEFAULT_GRADIENT.preset,
+    stops: [...DEFAULT_GRADIENT.stops],
+    animated: DEFAULT_GRADIENT.animated,
+  };
 }
 
 export const state = {
