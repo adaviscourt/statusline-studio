@@ -107,24 +107,43 @@ function hasGeneratedGradient() {
 }
 
 function pushBashGradientHelper(lines) {
-  lines.push(`__slm_gradient() {
+  lines.push(`__slm_gradient_phase() {
+  local ms
+  ms=$(date +%s%3N 2>/dev/null || printf '0')
+  case "$ms" in ''|*[!0-9]*) ms="$(date +%s 2>/dev/null || printf '0')000" ;; esac
+  printf '%s' $(( (10#$ms % 2000) * 1000 / 2000 ))
+}
+
+__slm_gradient() {
   local text="$1"; shift
+  local animated="$1"; shift
   local stops=("$@")
   local len=\${#text}
   local count=\${#stops[@]}
   if [ "$len" -eq 0 ]; then return; fi
   if [ "$count" -lt 2 ]; then printf '%s' "$text"; return; fi
   local last=$((count - 1))
-  local i pos scaled idx local_pos from to fr fg fb tr tg tb r g b ch
+  local phase=0
+  [ "$animated" = "1" ] && phase=$(__slm_gradient_phase)
+  local i pos scaled idx next local_pos from to fr fg fb tr tg tb r g b ch
   for ((i=0; i<len; i++)); do
     ch="\${text:i:1}"
     if [ "$len" -gt 1 ]; then pos=$((i * 1000 / (len - 1))); else pos=0; fi
-    scaled=$((pos * last))
-    idx=$((scaled / 1000))
-    [ "$idx" -ge "$last" ] && idx=$((last - 1))
+    if [ "$animated" = "1" ]; then
+      pos=$(( (pos + phase) % 1000 ))
+      scaled=$((pos * count))
+      idx=$((scaled / 1000))
+      [ "$idx" -ge "$count" ] && idx=0
+      next=$(((idx + 1) % count))
+    else
+      scaled=$((pos * last))
+      idx=$((scaled / 1000))
+      [ "$idx" -ge "$last" ] && idx=$((last - 1))
+      next=$((idx + 1))
+    fi
     local_pos=$((scaled - idx * 1000))
     from="\${stops[idx]#\\#}"
-    to="\${stops[idx + 1]#\\#}"
+    to="\${stops[next]#\\#}"
     fr=$((16#\${from:0:2})); fg=$((16#\${from:2:2})); fb=$((16#\${from:4:2}))
     tr=$((16#\${to:0:2})); tg=$((16#\${to:2:2})); tb=$((16#\${to:4:2}))
     r=$((fr + (tr - fr) * local_pos / 1000))
@@ -137,22 +156,26 @@ function pushBashGradientHelper(lines) {
 }
 
 function pushPythonGradientHelper(lines) {
-  lines.push(`def _slm_gradient_text(text, stops):
+  lines.push(`def _slm_gradient_phase():
+    return (int(time.time() * 1000) % 2000) / 2000
+
+def _slm_gradient_text(text, stops, animated=False):
     text = str(text)
     if not text:
         return ""
     if len(stops) < 2:
         return text
     out = []
+    phase = _slm_gradient_phase() if animated else 0
     last = len(stops) - 1
     span = max(len(text) - 1, 1)
     for i, ch in enumerate(text):
-        pos = i / span
-        scaled = pos * last
-        idx = min(int(scaled), last - 1)
+        pos = ((i / span) + phase) % 1 if animated else i / span
+        scaled = pos * len(stops) if animated else pos * last
+        idx = min(int(scaled), len(stops) - 1 if animated else last - 1)
         local = scaled - idx
         a = stops[idx].lstrip("#")
-        b = stops[idx + 1].lstrip("#")
+        b = stops[(idx + 1) % len(stops) if animated else idx + 1].lstrip("#")
         ar, ag, ab = int(a[0:2], 16), int(a[2:4], 16), int(a[4:6], 16)
         br, bg, bb = int(b[0:2], 16), int(b[2:4], 16), int(b[4:6], 16)
         r = round(ar + (br - ar) * local)
@@ -163,20 +186,25 @@ function pushPythonGradientHelper(lines) {
 }
 
 function pushNodeGradientHelper(lines) {
-  lines.push(`function slmGradientText(text, stops) {
+  lines.push(`function slmGradientPhase() {
+    return (Date.now() % 2000) / 2000;
+}
+
+function slmGradientText(text, stops, animated = false) {
     text = String(text);
     if (!text) return '';
     if (!Array.isArray(stops) || stops.length < 2) return text;
     const chars = Array.from(text);
     const last = stops.length - 1;
     const span = Math.max(chars.length - 1, 1);
+    const phase = animated ? slmGradientPhase() : 0;
     return chars.map((ch, i) => {
-        const pos = i / span;
-        const scaled = pos * last;
-        const idx = Math.min(Math.floor(scaled), last - 1);
+        const pos = animated ? ((i / span) + phase) % 1 : i / span;
+        const scaled = pos * (animated ? stops.length : last);
+        const idx = Math.min(Math.floor(scaled), animated ? stops.length - 1 : last - 1);
         const local = scaled - idx;
         const a = stops[idx].replace('#', '');
-        const b = stops[idx + 1].replace('#', '');
+        const b = stops[animated ? (idx + 1) % stops.length : idx + 1].replace('#', '');
         const ar = parseInt(a.slice(0, 2), 16), ag = parseInt(a.slice(2, 4), 16), ab = parseInt(a.slice(4, 6), 16);
         const br = parseInt(b.slice(0, 2), 16), bg = parseInt(b.slice(2, 4), 16), bb = parseInt(b.slice(4, 6), 16);
         const r = Math.round(ar + (br - ar) * local);
@@ -188,6 +216,7 @@ function pushNodeGradientHelper(lines) {
 }
 
 export function generateBash() {
+  const needsGradient = hasGeneratedGradient();
   const lines = [];
   lines.push('#!/bin/bash');
   lines.push('input=$(cat)');
@@ -203,7 +232,7 @@ export function generateBash() {
   lines.push("BG_BR_BLACK=$'\\033[100m'; BG_BR_RED=$'\\033[101m'; BG_BR_GREEN=$'\\033[102m'; BG_BR_YELLOW=$'\\033[103m'");
   lines.push("BG_BR_BLUE=$'\\033[104m'; BG_BR_MAGENTA=$'\\033[105m'; BG_BR_CYAN=$'\\033[106m'; BG_BR_WHITE=$'\\033[107m'");
   lines.push('');
-  if (hasGeneratedGradient()) {
+  if (needsGradient) {
     pushBashGradientHelper(lines);
     lines.push('');
   }
@@ -246,15 +275,16 @@ export function generateBash() {
 }
 
 export function generatePython() {
+  const needsGradient = hasGeneratedGradient();
   const lines = [];
   lines.push('#!/usr/bin/env python3');
-  lines.push('import json, sys');
+  lines.push(needsGradient ? 'import json, sys, time' : 'import json, sys');
 
   const needsGit = state.rows.flat().some(s => s.id.startsWith('git_'));
   if (needsGit) lines.push('import subprocess, os');
 
   lines.push('');
-  if (hasGeneratedGradient()) {
+  if (needsGradient) {
     pushPythonGradientHelper(lines);
     lines.push('');
   }
@@ -299,6 +329,7 @@ export function generatePython() {
 }
 
 export function generateNode() {
+  const needsGradient = hasGeneratedGradient();
   const lines = [];
   lines.push('#!/usr/bin/env node');
 
@@ -311,7 +342,7 @@ export function generateNode() {
   }
 
   lines.push('');
-  if (hasGeneratedGradient()) {
+  if (needsGradient) {
     pushNodeGradientHelper(lines);
     lines.push('');
   }

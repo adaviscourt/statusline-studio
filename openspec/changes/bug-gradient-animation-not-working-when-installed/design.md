@@ -24,3 +24,8 @@ The implementation must verify how the current Claude Code TUI refreshes install
 - Shell portability varies for sub-second timestamps; Bash output may need a robust fallback to seconds when higher precision is unavailable.
 - Different language generators must produce comparable frames for the same stops.
 - Claude Code refresh frequency may cap perceived animation smoothness even when generated frames vary correctly.
+
+## Verification Notes
+
+- Unattended verification environment has no `claude` command available and cannot run a fullscreen macOS/iTerm2 TUI session, so installed TUI repaint behavior was not directly observed.
+- Generated scripts animate only by emitting a different ANSI frame on each command invocation. If Claude Code does not reinvoke the installed statusline command while the TUI is visible, the terminal keeps the most recent frame until the next invocation.

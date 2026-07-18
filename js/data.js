@@ -198,11 +198,12 @@ export function renderBashOut(s, varExpr) {
   const mw = (s.maxWidth > 0) ? s.maxWidth : 0;
   if (hasGradient) {
     const gradientArgs = bashGradientArgs(gradientStops);
-    const gradientCall = `$(__slm_gradient "$__v" ${gradientArgs})`;
+    const animatedArg = s.gradient?.animated === true ? '1' : '0';
+    const gradientCall = `$(__slm_gradient "$__v" ${animatedArg} ${gradientArgs})`;
     const open = `${bg}${boldO}`;
     if (plainEmojiIcon) {
-      const prefixCall = pre ? `$(__slm_gradient ${shellSingleQuote(pre)} ${gradientArgs})` : '';
-      const tailCall = `$(__slm_gradient "$__v" ${gradientArgs})`;
+      const prefixCall = pre ? `$(__slm_gradient ${shellSingleQuote(pre)} ${animatedArg} ${gradientArgs})` : '';
+      const tailCall = `$(__slm_gradient "$__v" ${animatedArg} ${gradientArgs})`;
       if (mw > 0) {
         return `{ __v="${rawVar}${suf}"; __v="\${__v:0:${mw}}"; parts+=("${open}${prefixCall}${plainEmojiIcon}${tailCall}\${RESET}"); }`;
       }
@@ -236,15 +237,16 @@ export function renderPyOut(s, varExpr) {
   const mw   = (s.maxWidth > 0) ? s.maxWidth : 0;
   const inner = mw > 0 ? `(str(${varExpr}))[:${mw}]` : varExpr;
   if (hasGradient) {
+    const animatedArg = s.gradient?.animated === true ? 'True' : 'False';
     if (plainEmojiIcon) {
       const prefixExpr = JSON.stringify(pre);
       const tailExpr = `str(${inner}) + ${JSON.stringify(suf)}`;
       const open = `${bg}${bold}`;
-      return `parts.append("${open}" + _slm_gradient_text(${prefixExpr}, ${pythonStops(gradientStops)}) + "${plainEmojiIcon}" + _slm_gradient_text(${tailExpr}, ${pythonStops(gradientStops)}))`;
+      return `parts.append("${open}" + _slm_gradient_text(${prefixExpr}, ${pythonStops(gradientStops)}, ${animatedArg}) + "${plainEmojiIcon}" + _slm_gradient_text(${tailExpr}, ${pythonStops(gradientStops)}, ${animatedArg}))`;
     }
     const textExpr = `${JSON.stringify(pre + gradientIcon)} + str(${inner}) + ${JSON.stringify(suf)}`;
     const open = `${bg}${bold}`;
-    return `parts.append("${open}" + _slm_gradient_text(${textExpr}, ${pythonStops(gradientStops)}))`;
+    return `parts.append("${open}" + _slm_gradient_text(${textExpr}, ${pythonStops(gradientStops)}, ${animatedArg}))`;
   }
   return `parts.append(f"${pre}${icon}${bg}${bold}${c.o}{${inner}}${reset}${suf}")`;
 }
@@ -264,16 +266,17 @@ export function renderNodeOut(s, varExpr) {
   const suf  = s.suffix || '';
   const mw   = (s.maxWidth > 0) ? s.maxWidth : 0;
   if (hasGradient) {
+    const animatedArg = s.gradient?.animated === true ? 'true' : 'false';
     const valueExpr = mw > 0 ? `String(${varExpr}).slice(0,${mw})` : `String(${varExpr})`;
     if (plainEmojiIcon) {
       const prefixExpr = JSON.stringify(pre);
       const tailExpr = `${valueExpr} + ${JSON.stringify(suf)}`;
       const open = `${bg}${bold}`;
-      return `parts.push("${open}" + slmGradientText(${prefixExpr}, ${nodeStops(gradientStops)}) + "${plainEmojiIcon}" + slmGradientText(${tailExpr}, ${nodeStops(gradientStops)}));`;
+      return `parts.push("${open}" + slmGradientText(${prefixExpr}, ${nodeStops(gradientStops)}, ${animatedArg}) + "${plainEmojiIcon}" + slmGradientText(${tailExpr}, ${nodeStops(gradientStops)}, ${animatedArg}));`;
     }
     const textExpr = `${JSON.stringify(pre + gradientIcon)} + ${valueExpr} + ${JSON.stringify(suf)}`;
     const open = `${bg}${bold}`;
-    return `parts.push("${open}" + slmGradientText(${textExpr}, ${nodeStops(gradientStops)}));`;
+    return `parts.push("${open}" + slmGradientText(${textExpr}, ${nodeStops(gradientStops)}, ${animatedArg}));`;
   }
   if (mw > 0) {
     return `parts.push(\`${pre}${icon}${bg}${bold}${c.o}\${String(${varExpr}).slice(0,${mw})}${reset}${suf}\`);`;
