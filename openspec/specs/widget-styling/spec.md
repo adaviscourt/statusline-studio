@@ -31,7 +31,14 @@ Each statusline widget SHALL allow gradient styling to be enabled or disabled in
 - **GIVEN** a widget has gradient styling enabled with animation enabled
 - **WHEN** the widget is rendered in the editor preview, canvas, or live preview
 - **THEN** the gradient styling sweeps across the widget text
-- **AND** the generated Bash, Python, and Node output remains a static ANSI gradient
+
+#### Scenario: Widget uses animated gradient in installed statusline output
+
+- **GIVEN** a widget has gradient styling enabled with animation enabled
+- **AND** the generated Bash, Python, or Node statusline script has been installed in Claude Code
+- **WHEN** Claude Code invokes the installed statusline command repeatedly while the TUI is visible
+- **THEN** the generated ANSI colors for that widget vary by time-based animation phase
+- **AND** the TUI renders the gradient as animated frames instead of one static rainbow
 
 ### Requirement: Named Gradient Presets
 
@@ -105,5 +112,20 @@ Generated Bash, Python, and Node statusline scripts SHALL preserve gradient styl
 - **GIVEN** a widget uses valid custom hex stops
 - **WHEN** Bash, Python, or Node code is generated
 - **THEN** the generated code includes the ANSI color behavior needed to render that widget with those custom stops
+- **AND** the generated code resets color after the widget
+
+#### Scenario: Export includes animated gradient frames
+
+- **GIVEN** a widget uses a named or custom gradient with animation enabled
+- **WHEN** Bash, Python, or Node code is generated
+- **THEN** the generated code includes time-based ANSI gradient frame behavior for that widget
+- **AND** consecutive invocations at different animation phases produce different foreground color sequences for the same widget text
+- **AND** the generated code resets color after the widget
+
+#### Scenario: Export keeps static gradient when animation is disabled
+
+- **GIVEN** a widget uses a named or custom gradient with animation disabled
+- **WHEN** Bash, Python, or Node code is generated
+- **THEN** consecutive invocations for the same widget text produce the same ANSI gradient color sequence
 - **AND** the generated code resets color after the widget
 
