@@ -50,7 +50,7 @@ jobs:
       - name: Create archive pull request
         uses: peter-evans/create-pull-request@v7
         with:
-          branch: docs/opencode-sync-${{ matrix.change.name }}
+          branch: docs/openspec-sync-${{ matrix.change.name }}
           delete-branch: true
           title: ${{ steps.archive.outputs.pr_title }}
           commit-message: ${{ steps.archive.outputs.pr_title }}
