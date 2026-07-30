@@ -284,6 +284,10 @@ export function renderNodeOut(s, varExpr) {
   return `parts.push(\`${pre}${icon}${bg}${bold}${c.o}\${${varExpr}}${reset}${suf}\`);`;
 }
 
+function showsModelVariant(s) {
+  return s.showVersion === true;
+}
+
 // ─── Gradient output renderers (runtime color var) ─
 // Used by context widgets when `gradient` is enabled. The color var is chosen
 // at statusline-runtime based on percentage, so the static seg.color is ignored.
@@ -331,15 +335,15 @@ export function gradientNodeOut(s, varExpr, colorVar) {
 // ─── Segment definitions ──────────────────────────
 export const SEGMENT_DEFS = [
   { id: 'model',      label: 'Model Name',     icon: '◆', group: 'Model & Session',  color: 'blue',
-    editorFields: [{ type:'toggle', key:'showVersion', label:'Show version (e.g. 4.6)' }],
-    preview: s => s.showVersion ? 'Sonnet 4.6' : 'Sonnet',
-    bash: s => s.showVersion
-      ? `MODEL=$(echo "$input" | jq -r '.model.display_name' | sed 's/^[Cc]laude //')`
-      : `MODEL=$(echo "$input" | jq -r '.model.display_name' | sed 's/^[Cc]laude //; s/ [0-9].*//')`,
-    pyVar: s => s.showVersion
+    editorFields: [{ type:'toggle', key:'showVersion', label:'Show model variant (e.g. Opus 5)' }],
+    preview: s => showsModelVariant(s) ? 'Opus 5' : 'Opus',
+    bash: s => showsModelVariant(s)
+      ? `MODEL=$(echo "$input" | jq -r '.model.display_name' | sed -E 's/^[Cc]laude[[:space:]]+//')`
+      : `MODEL=$(echo "$input" | jq -r '.model.display_name' | sed -E 's/^[Cc]laude[[:space:]]+//; s/[[:space:]]+[0-9].*//')`,
+    pyVar: s => showsModelVariant(s)
       ? `import re\nmodel = re.sub(r'^[Cc]laude\\s+', '', data["model"]["display_name"])`
       : `import re\nmodel = re.sub(r'\\s+\\d.*', '', re.sub(r'^[Cc]laude\\s+', '', data["model"]["display_name"]))`,
-    nodeVar: s => s.showVersion
+    nodeVar: s => showsModelVariant(s)
       ? `const model = data.model.display_name.replace(/^[Cc]laude\\s+/, '');`
       : `const model = data.model.display_name.replace(/^[Cc]laude\\s+/, '').replace(/\\s+\\d.*/, '');`,
     bashOut: s => renderBashOut(s, '$MODEL'),
