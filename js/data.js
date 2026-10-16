@@ -549,16 +549,16 @@ export const SEGMENT_DEFS = [
       : `if (rl5h != null) { ${renderNodeOut(s, '`5h: ${Math.round(rl5h)}%`')} }`,
   },
   { id: 'rl7d',       label: 'Rate Limit 7d',  icon: '◎', group: 'Rate Limits',      color: 'red',
-    editorFields: [{ type:'toggle', key:'showReset', label:'Show reset time' }],
-    preview: s => s.showReset ? '7d: 41% · 2:30pm' : '7d: 41%',
+    editorFields: [{ type:'toggle', key:'showReset', label:'Show reset date & time' }],
+    preview: s => s.showReset ? '7d: 41% · oct 20, 2:30pm' : '7d: 41%',
     bash: s => s.showReset
-      ? `RL7D=$(echo "$input" | jq -r 'if .rate_limits.seven_day.used_percentage != null then (.rate_limits.seven_day.used_percentage | floor | tostring) else "" end')\n_RL7D_TS=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')\nRL7D_RESET=""\n[ -n "$_RL7D_TS" ] && RL7D_RESET=$(date -r "$_RL7D_TS" +%I:%M%p 2>/dev/null || date -d "@$_RL7D_TS" +%I:%M%p 2>/dev/null || echo "")\n[ -n "$RL7D_RESET" ] && RL7D_RESET=$(echo "$RL7D_RESET" | tr '[:upper:]' '[:lower:]' | sed 's/^0//')`
+      ? `RL7D=$(echo "$input" | jq -r 'if .rate_limits.seven_day.used_percentage != null then (.rate_limits.seven_day.used_percentage | floor | tostring) else "" end')\n_RL7D_TS=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')\nRL7D_RESET=""\n[ -n "$_RL7D_TS" ] && RL7D_RESET=$(date -r "$_RL7D_TS" '+%b %d, %I:%M%p' 2>/dev/null || date -d "@$_RL7D_TS" '+%b %d, %I:%M%p' 2>/dev/null || echo "")\n[ -n "$RL7D_RESET" ] && RL7D_RESET=$(echo "$RL7D_RESET" | tr '[:upper:]' '[:lower:]' | sed -E 's/ 0/ /g')`
       : `RL7D=$(echo "$input" | jq -r 'if .rate_limits.seven_day.used_percentage != null then (.rate_limits.seven_day.used_percentage | floor | tostring) else "" end')`,
     pyVar: s => s.showReset
-      ? `rl7d = (data.get("rate_limits") or {}).get("seven_day", {}).get("used_percentage")\n    _rl7d_ts = (data.get("rate_limits") or {}).get("seven_day", {}).get("resets_at")\n    rl7d_reset = __import__('datetime').datetime.fromtimestamp(_rl7d_ts).strftime('%I:%M%p').lower().lstrip('0') if _rl7d_ts else ""`
+      ? `rl7d = (data.get("rate_limits") or {}).get("seven_day", {}).get("used_percentage")\n    _rl7d_ts = (data.get("rate_limits") or {}).get("seven_day", {}).get("resets_at")\n    rl7d_reset = __import__('datetime').datetime.fromtimestamp(_rl7d_ts).strftime('%b %d, %I:%M%p').lower().replace(' 0', ' ') if _rl7d_ts else ""`
       : `rl7d = (data.get("rate_limits") or {}).get("seven_day", {}).get("used_percentage")`,
     nodeVar: s => s.showReset
-      ? `const rl7d = data.rate_limits?.seven_day?.used_percentage;\n    const _rl7dTs = data.rate_limits?.seven_day?.resets_at;\n    const rl7dReset = _rl7dTs ? new Date(_rl7dTs * 1000).toLocaleTimeString('en',{hour:'numeric',minute:'2-digit',hour12:true}).toLowerCase().replace(' ','') : '';`
+      ? `const rl7d = data.rate_limits?.seven_day?.used_percentage;\n    const _rl7dTs = data.rate_limits?.seven_day?.resets_at;\n    const _rl7dDate = _rl7dTs ? new Date(_rl7dTs * 1000) : null;\n    const rl7dReset = _rl7dDate ? _rl7dDate.toLocaleDateString('en',{month:'short',day:'numeric'}).toLowerCase() + ', ' + _rl7dDate.toLocaleTimeString('en',{hour:'numeric',minute:'2-digit',hour12:true}).toLowerCase().replace(' ','') : '';`
       : `const rl7d = data.rate_limits?.seven_day?.used_percentage;`,
     bashOut: s => {
       if (s.showReset && hasEnabledGradient(s)) {
